@@ -46,7 +46,7 @@ static const NSTimeInterval kLyricsGrace = 3;
 // Below this the player has not laid out yet and nothing can be measured from it.
 static const CGFloat kLivingHeight = 200;
 
-static char kOverlayKey, kPlateKey, kTitleKey;
+static char kOverlayKey, kPlateKey, kTitleKey, kSubtitleKey;
 static BOOL sg_open;
 static BOOL sg_moving;                      // the transition is in flight, so no layout pass may re-place it
 static __weak UIView *sg_host;              // SPTNowPlayingView
@@ -408,6 +408,8 @@ static void replace(void) {
     UIView *host = unit.viewIfLoaded;
     // The title and the artist are two labels of one arranged element view, which is what moves.
     UIView *label = SGRFindByIdentifier(host, @"now-playing-title-label", &kTitleKey);
+    SGRStyleText(label, SGRTextPlayer, nil);
+    SGRStyleText(SGRFindByIdentifier(host, @"now-playing-subtitle-label", &kSubtitleKey), SGRTextPrimary, SGRSecondary());
     UIView *element = nil;
     for (UIView *v = label; v && v != host; v = v.superview) {
         if ([v.superview isKindOfClass:UIStackView.class]) { element = v; break; }

@@ -17,7 +17,7 @@
 #import "Home.h"
 
 // How far the cover sits in from the tile's top, bottom and leading edges, and its corners there.
-static const CGFloat kInset = 5, kCoverRadius = 4;
+static const CGFloat kInset = 2, kCoverRadius = 6;
 
 static char kSurfaceKey, kImageKey, kShownKey;
 
@@ -115,6 +115,7 @@ static void refresh(UIView *tile) {
     if (!cover || !square || square.bounds.size.width < 20 || tile.bounds.size.width <= square.bounds.size.width) return;
     UIView *surface = surfaceIn(tile, parts.fill);
     inset(square);
+    SGRStyleMediaLabels(tile);
 
     UIImage *image = cover.image;
     if (!image) {

@@ -3,32 +3,38 @@
 #import "SGRTokens.h"
 #import "SGRAccent.h"
 
-const CGFloat SGRSideMargin = 16;
+const CGFloat SGRSideMargin = SGRSpace20;
 const CGFloat SGRGrid = 8;
 const CGFloat SGRRadiusArtwork = 12;
-const CGFloat SGRRadiusCard = 16;
+const CGFloat SGRRadiusCard = 12;
 const CGFloat SGRRadiusCover = 8;
 const CGFloat SGRRadiusThumb = 6;
 const CGFloat SGRGlassCircleSize = 44;
 const CGFloat SGRActionHeight = 48;
 const CGFloat SGRActionSpacing = 12;
 const CGFloat SGRGlassSpacing = 16;
-const NSTimeInterval SGRCrossfade = 0.35;
+const NSTimeInterval SGRCrossfade = 0.28;
+const CGFloat SGRRadiusControl = 12;
+const CGFloat SGRRadiusSheet = 28;
+const CGFloat SGRRadiusMiniPlayer = 18;
+const NSTimeInterval SGRInteractionDuration = 0.2;
+const CGFloat SGRPressScale = 0.97;
+const NSTimeInterval SGRLyricsBrowseHold = 6;
 
 // A layout spring settles in about this long without overshooting; a press gives a little back.
-static const NSTimeInterval kLayoutDuration = 0.45, kPressDuration = 0.32;
-static const CGFloat kPressDamping = 0.62;
+static const NSTimeInterval kLayoutDuration = 0.36, kPressDuration = 0.2;
+static const CGFloat kPressDamping = 0.82;
 
 UIColor *SGRPrimary(void) {
     return UIColor.whiteColor;
 }
 
 UIColor *SGRSecondary(void) {
-    return [UIColor colorWithWhite:1 alpha:SGRIncreaseContrast() ? 0.80 : 0.65];
+    return [UIColor colorWithWhite:1 alpha:SGRIncreaseContrast() ? 0.90 : 0.72];
 }
 
 UIColor *SGRTertiary(void) {
-    return [UIColor colorWithWhite:1 alpha:SGRIncreaseContrast() ? 0.60 : 0.40];
+    return [UIColor colorWithWhite:1 alpha:SGRIncreaseContrast() ? 0.75 : 0.55];
 }
 
 // Read per call: the accent is stored as it is picked, and the colour row reads it the same way.
@@ -62,6 +68,19 @@ UIFont *SGRFont(UIFontTextStyle style, UIFontWeight weight, UIContentSizeCategor
     UITraitCollection *traits = [UITraitCollection traitCollectionWithPreferredContentSizeCategory:current];
     CGFloat size = [UIFont preferredFontForTextStyle:style compatibleWithTraitCollection:traits].pointSize;
     return [UIFont systemFontOfSize:size weight:weight];
+}
+
+UIFont *SGRType(SGRTextRole role) {
+    switch (role) {
+        case SGRTextNavigation: return SGRFont(UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
+        case SGRTextHero: return SGRFont(UIFontTextStyleTitle1, UIFontWeightBold, UIContentSizeCategoryExtraLarge);
+        case SGRTextSection: return SGRFont(UIFontTextStyleTitle2, UIFontWeightBold, UIContentSizeCategoryLarge);
+        case SGRTextPrimary: return SGRFont(UIFontTextStyleBody, UIFontWeightMedium, UIContentSizeCategoryExtraLarge);
+        case SGRTextSecondary: return SGRFont(UIFontTextStyleSubheadline, UIFontWeightRegular, UIContentSizeCategoryExtraLarge);
+        case SGRTextMetadata: return SGRFont(UIFontTextStyleFootnote, UIFontWeightRegular, UIContentSizeCategoryExtraLarge);
+        case SGRTextPlayer: return SGRFont(UIFontTextStyleTitle2, UIFontWeightBold, UIContentSizeCategoryExtraLarge);
+    }
+    return SGRFont(UIFontTextStyleBody, UIFontWeightRegular, UIContentSizeCategoryExtraLarge);
 }
 
 UIFont *SGRMonospacedDigitsFont(UIFont *font) {

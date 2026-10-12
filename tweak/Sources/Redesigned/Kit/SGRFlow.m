@@ -26,7 +26,7 @@ static const CFTimeInterval kRecolor = 1.2;
 // The colour under the discs is the artwork's main colour at this share of its light.
 static const CGFloat kBaseShade = 0.55;
 // The shade over everything: clear down to this share of the height, then this much black at the bottom.
-static const CGFloat kShadeFrom = 0.45, kShadeBottom = 0.35;
+static const CGFloat kShadeFrom = 0.3, kShadeBottom = 0.5;
 
 static NSDictionary *noActions(void) {
     static NSDictionary *none;

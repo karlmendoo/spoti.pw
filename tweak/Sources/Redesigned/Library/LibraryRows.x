@@ -64,6 +64,7 @@ static void hairline(UIView *cell, UIView *thumb) {
 }
 
 static void style(UIView *cell) {
+    SGRStyleMediaLabels(cell);
     UIView *thumb = SGRFindByIdentifier(cell, @"Artwork.Row.Library", &kThumbKey);
     if (thumb) roundCorners(thumb, SGRRadiusThumb);
     else roundCorners(SGRFindByIdentifier(cell, @"Components.UI.CardLibrary.Artwork", &kCoverKey), SGRRadiusCover);

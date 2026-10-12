@@ -2,6 +2,7 @@
 #import "Settings/SGPageStyle.h"
 #import "MeaningSheet.h"
 #import "Redesigned/Kit/SGRTokens.h"
+#import "Redesigned/Kit/SGRContentStyle.h"
 
 static const CGFloat kSide = 24, kTop = 28, kGap = 12;
 
@@ -41,6 +42,7 @@ static NSString *authorSymbol(SGLyricsMeaningAuthor author) {
     sheet.detents = @[UISheetPresentationControllerDetent.mediumDetent, UISheetPresentationControllerDetent.largeDetent];
     sheet.prefersGrabberVisible = YES;
     sheet.prefersScrollingExpandsWhenScrolledToEdge = YES;
+    SGRStyleSheet(self);
     return self;
 }
 
@@ -61,7 +63,7 @@ static NSString *authorSymbol(SGLyricsMeaningAuthor author) {
     config.baseForegroundColor = SGRAccent();
     config.titleTextAttributesTransformer = ^NSDictionary *(NSDictionary *attributes) {
         NSMutableDictionary *out = [attributes mutableCopy];
-        out[NSFontAttributeName] = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+        out[NSFontAttributeName] = SGRType(SGRTextSecondary);
         return out;
     };
     UIButton *button = [UIButton buttonWithConfiguration:config primaryAction:nil];
@@ -78,7 +80,7 @@ static NSString *authorSymbol(SGLyricsMeaningAuthor author) {
     _scroll.alwaysBounceVertical = YES;
     [self.view addSubview:_scroll];
 
-    _quote = [self labelWithFont:[UIFont systemFontOfSize:20 weight:UIFontWeightBold] color:SGRPrimary()];
+    _quote = [self labelWithFont:SGRType(SGRTextSection) color:SGRPrimary()];
     UIButtonConfiguration *badge = [UIButtonConfiguration filledButtonConfiguration];
     badge.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
     badge.buttonSize = UIButtonConfigurationSizeMini;
@@ -90,7 +92,7 @@ static NSString *authorSymbol(SGLyricsMeaningAuthor author) {
     _author.userInteractionEnabled = NO;
     [_scroll addSubview:_author];
     _body = [self labelWithFont:[UIFont preferredFontForTextStyle:UIFontTextStyleBody] color:SGRPrimary()];
-    _count = [self labelWithFont:[UIFont systemFontOfSize:13 weight:UIFontWeightRegular] color:SGRTertiary()];
+    _count = [self labelWithFont:SGRType(SGRTextMetadata) color:SGRTertiary()];
     _count.numberOfLines = 1;
     _next = [self buttonWithTitle:@"Next" action:@selector(showNext)];
     _open = [self buttonWithTitle:@"View on Genius" action:@selector(openGenius)];
@@ -128,14 +130,14 @@ static NSString *authorSymbol(SGLyricsMeaningAuthor author) {
     CGFloat right = kSide + width;
     if (!_next.hidden) {
         CGSize size = [_next sizeThatFits:CGSizeZero];
-        _next.frame = CGRectMake(right - size.width, y, size.width, 22);
+        _next.frame = CGRectMake(right - MAX(44, size.width), y, MAX(44, size.width), 44);
         right = CGRectGetMinX(_next.frame) - 20;
     }
     if (!_open.hidden) {
         CGSize size = [_open sizeThatFits:CGSizeZero];
-        _open.frame = CGRectMake(right - size.width, y, size.width, 22);
+        _open.frame = CGRectMake(kSide, y + 44 + kGap, MIN(width, MAX(44, size.width)), 44);
     }
-    _scroll.contentSize = CGSizeMake(self.view.bounds.size.width, y + 22 + kTop + self.view.safeAreaInsets.bottom);
+    _scroll.contentSize = CGSizeMake(self.view.bounds.size.width, y + (_open.hidden ? 44 : 88 + kGap) + kTop + self.view.safeAreaInsets.bottom);
 }
 
 - (void)showNext {

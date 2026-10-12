@@ -19,11 +19,10 @@
 #import "Search.h"
 
 // The tint the glass takes of the card's colour, and how dark the far corner of the colour under it gets.
-static const CGFloat kTintAlpha = 0.35;
 static const CGFloat kFarBrightness = 0.55;
 // Where the title's top leading corner moves to, clear of the larger corner.
-static const CGFloat kTitleInset = 12;
-static const CGFloat kPressScale = 0.96;
+static const CGFloat kTitleInset = SGRSpace16;
+static const CGFloat kPressScale = 0.97;
 
 static char kPartsKey, kRoundedKey;
 
@@ -42,7 +41,6 @@ static char kPartsKey, kRoundedKey;
 
 @interface SGRSearchCardParts : NSObject
 @property (nonatomic) SGRSearchCardPlate *plate;
-@property (nonatomic) UIVisualEffectView *glass;
 @property (nonatomic) UIColor *color;
 @end
 
@@ -97,12 +95,6 @@ static UIColor *darker(UIColor *color) {
     return [UIColor colorWithHue:hue saturation:saturation brightness:brightness * kFarBrightness alpha:alpha];
 }
 
-static BOOL glassAllowed(void) {
-    if (SGRReduceTransparency()) return NO;
-    if (@available(iOS 26.0, *)) return YES;
-    return NO;
-}
-
 static SGRSearchCardParts *partsIn(UIView *box, UIView *content) {
     SGRSearchCardParts *parts = objc_getAssociatedObject(box, &kPartsKey);
     if (!parts) {
@@ -119,33 +111,20 @@ static SGRSearchCardParts *partsIn(UIView *box, UIView *content) {
     }
     // Behind the cover and the title whatever order Spotify keeps its own views in, by depth.
     if (parts.plate.superview != content) [content insertSubview:parts.plate atIndex:0];
-    if (glassAllowed() && !parts.glass) {
-        UIVisualEffectView *glass = [UIVisualEffectView new];
-        // Dark like every glass of the redesign's, rather than by grace of the navigation stack Spotify
-        // hosts the page in (Navbar/TabBar.x).
-        glass.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-        glass.userInteractionEnabled = NO;
-        glass.accessibilityElementsHidden = YES;
-        glass.layer.zPosition = -1;
-        parts.glass = glass;
-        parts.color = nil;
-    }
-    if (parts.glass && parts.glass.superview != content) [content insertSubview:parts.glass aboveSubview:parts.plate];
-    if (parts.glass) parts.glass.hidden = !glassAllowed();
     return parts;
 }
 
 static void paint(SGRSearchCardParts *parts, UIColor *color) {
     if (parts.color && CGColorEqualToColor(parts.color.CGColor, color.CGColor)) return;
     parts.color = color;
-    ((CAGradientLayer *)parts.plate.layer).colors = @[(id)color.CGColor, (id)darker(color).CGColor];
-    if (@available(iOS 26.0, *)) {
-        if (parts.glass) {
-            UIGlassEffect *effect = [UIGlassEffect effectWithStyle:UIGlassEffectStyleClear];
-            effect.tintColor = [color colorWithAlphaComponent:kTintAlpha];
-            parts.glass.effect = effect;
-        }
-    }
+    CGFloat h = 0, saturation = 0, brightness = 0, alpha = 1;
+    [color getHue:&h saturation:&saturation brightness:&brightness alpha:&alpha];
+    UIColor *quiet = [UIColor colorWithHue:h saturation:MIN(saturation, 0.65) brightness:MIN(brightness, 0.58) alpha:1];
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];
+    ((CAGradientLayer *)parts.plate.layer).colors = @[(id)quiet.CGColor, (id)darker(quiet).CGColor];
+    [CATransaction commit];
+
 }
 
 // The title's own position, before the move, is where Spotify's layout put its centre.
@@ -196,13 +175,12 @@ static void style(UIView *box) {
     roundCorners(content, SGRRadiusCard);
     CGRect bounds = content.bounds;
     if (!CGRectEqualToRect(parts.plate.frame, bounds)) parts.plate.frame = bounds;
-    if (parts.glass && !CGRectEqualToRect(parts.glass.frame, bounds)) {
-        parts.glass.frame = bounds;
-        SGShapeGlass(parts.glass, SGRRadiusCard, NO);
-    }
     moveTitleIn(content);
     roundCover(content);
-    logOnce(parts.glass ? @"category cards on tinted glass" : @"category cards on their colour, no glass");
+    for (UIView *sub in content.subviews) {
+        if ([NSStringFromClass(sub.class) containsString:@"EncoreLabel"]) SGRStyleText(sub, SGRTextPrimary, SGRPrimary());
+    }
+    logOnce(@"category cards on quiet editorial colour surfaces");
 }
 
 %hook _TtCE16Encore_LayoutKitO16EncoreFoundation6Encore3Box

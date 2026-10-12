@@ -255,6 +255,7 @@ static void applyHeader(UIView *header) {
     SGRHeaderInfo *info = objc_getAssociatedObject(container, &kInfoKey);
     if (!info) {
         info = [[SGRHeaderInfo alloc] initWithFrame:CGRectZero];
+        info.artistPresentation = YES;
         // Follow's only state is its title in the app's language, so the glyph takes it from the collection.
         __weak UIView *weakPage = SGRArtistPageOf(container);
         __weak SGRHeaderInfo *weakInfo = info;

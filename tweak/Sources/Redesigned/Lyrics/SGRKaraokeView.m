@@ -16,11 +16,13 @@
 #import "Shared/Haptics/Haptics.h"
 #import "Redesigned/Kit/SGRTokens.h"
 
+static CGFloat SGRInactiveLyricAlpha(void) { return SGRIncreaseContrast() ? 0.65 : 0.4; }
+
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
-static const CGFloat kDimAlpha = 0.3, kFillEdge = 22, kLift = 2.5, kDimScale = 0.97;
+static const CGFloat kFillEdge = 16, kLift = 1.2, kDimScale = 0.985;
 static const CGFloat kAnchor = 0.28;   // where the sung line rests, as a share of the height
 static const CGFloat kEdgeFade = 0.1;  // the lines fade out over this share at the top and bottom
-static const CGFloat kBlurPerLine = 1.4, kMaxBlur = 6;
+static const CGFloat kBlurPerLine = 1, kMaxBlur = 4;
 // The (oh, aye) hanging under a line: smaller, a little dimmer, and just clear of it.
 static const CGFloat kBackingScale = 0.62, kBackingAlpha = 0.8, kBackingGap = 4;
 // The mark of a line Genius explains: a bubble after it for the artist's own word, a dotted underline
@@ -33,7 +35,6 @@ static const CGFloat kCreditSize = 12, kCreditAlpha = 0.4, kCreditBottom = 10;
 // has it, and the gap between it and the credit beside it.
 static const CGFloat kExtrasSide = 44, kExtrasBottom = 12, kExtrasGlyph = 17, kExtrasCreditGap = 12;
 static const NSTimeInterval kRestyleFade = 0.3;   // the lines crossfading to a new style
-static const NSTimeInterval kBrowseHold = 3;   // after scrolling by hand, how long until it follows the song again
 static const double kFloatMinMs = 700, kFloatLeadMs = 80;   // a short word still floats up this slowly
 // A line lit whole: how long its words take to come up to full white, and to float up together.
 static const NSTimeInterval kWholeFade = 0.35;
@@ -144,7 +145,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     _riseStart = word.start;
     _riseEnd = word.end;
     _rightToLeft = rightToLeft;
-    [self addSubview:wordLabel(word.text, font, [UIColor colorWithWhite:1 alpha:kDimAlpha], self.bounds, rightToLeft)];
+    [self addSubview:wordLabel(word.text, font, [UIColor colorWithWhite:1 alpha:SGRInactiveLyricAlpha()], self.bounds, rightToLeft)];
     _lit = wordLabel(word.text, font, UIColor.whiteColor, self.bounds, rightToLeft);
     // Hidden until the line is sung: a masked layer is drawn offscreen every frame even when the
     // mask leaves nothing of it, and a song has hundreds of words waiting their turn.
@@ -182,7 +183,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 // x = 5 at the end of the word is 96 % of the way up.
 - (void)floatAt:(double)ms {
     double x = MAX(0, ms - _riseStart + kFloatLeadMs) / MAX(_riseEnd - _riseStart, kFloatMinMs) * 5;
-    CGFloat lift = kLift * (1 - (1 + x) * exp(-x));
+    CGFloat lift = SGRReduceMotion() ? 0 : kLift * (1 - (1 + x) * exp(-x));
     if (lift == _lift) return;
     _lift = lift;
     self.transform = CGAffineTransformMakeTranslation(0, -lift);
@@ -687,7 +688,7 @@ static double wholeFrom(SGKaraokeLine *run, BOOL sweepsEstimates) {
         _translation.numberOfLines = 0;
         _translation.font = style.translation;
         _translation.textColor = UIColor.whiteColor;
-        _translation.alpha = kDimAlpha;
+        _translation.alpha = SGRInactiveLyricAlpha();
         _translation.textAlignment = _right ? NSTextAlignmentRight : NSTextAlignmentLeft;
         _translation.text = line.translation;
         [self addSubview:_translation];
@@ -736,7 +737,7 @@ static const NSUInteger kLinesPerFrame = 4;
     NSUInteger generation = ++_generation;
     if (_translation) {
         [UIView animateWithDuration:active ? 0.3 : 0.5 delay:0 options:UIViewAnimationOptionBeginFromCurrentState
-                         animations:^{ self->_translation.alpha = active ? kTranslationLit : kDimAlpha; } completion:nil];
+                         animations:^{ self->_translation.alpha = active ? kTranslationLit : SGRInactiveLyricAlpha(); } completion:nil];
     }
     if (active) {
         NSMutableArray<SGRKaraokeWordView *> *whole = [NSMutableArray array];
@@ -911,7 +912,7 @@ static double smoothstep(double p) {
         dot.frame = CGRectMake(i * (_side + _gap), 0, _side, _side);
         dot.cornerRadius = _side / 2;
         dot.backgroundColor = UIColor.whiteColor.CGColor;
-        dot.opacity = kDimAlpha;
+        dot.opacity = SGRInactiveLyricAlpha();
         [_group addSublayer:dot];
         [dots addObject:dot];
     }
@@ -985,7 +986,7 @@ static double smoothstep(double p) {
     // Each dot fills over its third of the time before they go, in the order the next line reads.
     for (NSUInteger i = 0; i < _dots.count; i++) {
         CABasicAnimation *fill = [CABasicAnimation animationWithKeyPath:@"opacity"];
-        fill.fromValue = @(kDimAlpha);
+        fill.fromValue = @(SGRInactiveLyricAlpha());
         fill.toValue = @1;
         fill.beginTime = kBreakEpoch + (_rightToLeft ? _dots.count - 1 - i : i) * exitAt / 3;
         fill.duration = exitAt / 3;
@@ -1033,6 +1034,19 @@ typedef struct {
 @interface SGRKaraokeView () <UIScrollViewDelegate>
 @end
 
+@interface SGRKaraokeView (SGRClock)
+- (void)tick;
+@end
+
+// CADisplayLink retains its target. Keep the owner weak so a dismissed lyrics page can deallocate.
+@interface SGRLyricsClockTarget : NSObject
+@property (nonatomic, weak) SGRKaraokeView *owner;
+- (void)tick;
+@end
+@implementation SGRLyricsClockTarget
+- (void)tick { [self.owner tick]; }
+@end
+
 @implementation SGRKaraokeView {
     UIScrollView *_scroll;
     BOOL _browsing;
@@ -1063,7 +1077,7 @@ typedef struct {
     CFTimeInterval _stillSince;   // when the position stopped moving, 0 while it moves
     SGRKaraokeStyle *_style;   // how the lines were laid out
     BOOL _hasSpoken, _hasTranslation;   // whether the song has any line with either
-    UIButton *_extras;
+    UIButton *_extras, *_follow;
     CGFloat _builtWidth;
     BOOL _showing;
     CAGradientLayer *_fade;
@@ -1088,7 +1102,7 @@ typedef struct {
     _margin = kMargin;
     _lineGap = kLineGap;
     _blurPerLine = kBlurPerLine;
-    _maxBlur = kMaxBlur;
+    _maxBlur = SGRIncreaseContrast() || SGRReduceMotion() ? 0 : kMaxBlur;
     _shown = [NSMutableDictionary dictionary];
     _sightArrangement = NSUIntegerMax;
     _fade = [CAGradientLayer layer];
@@ -1111,11 +1125,28 @@ typedef struct {
     _crediting = SGFlag(SGKeyLyricsCredit, NO);
     _sweepsEstimates = SGFlag(SGKeyLyricsSimulateWords, NO);
     [self addSubview:_credit];
-    [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
+    UIButtonConfiguration *follow = [UIButtonConfiguration tintedButtonConfiguration];
+    follow.title = @"Follow Lyrics";
+    follow.image = [UIImage systemImageNamed:@"location.fill"];
+    follow.imagePadding = SGRSpace8;
+    follow.baseForegroundColor = SGRPrimary();
+    follow.baseBackgroundColor = [UIColor colorWithWhite:1 alpha:0.16];
+    follow.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
+    follow.contentInsets = NSDirectionalEdgeInsetsMake(SGRSpace12, SGRSpace16, SGRSpace12, SGRSpace16);
+    _follow = [UIButton buttonWithConfiguration:follow primaryAction:nil];
+    _follow.hidden = YES;
+    [_follow addTarget:self action:@selector(followSong) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_follow];
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)];
+    tap.cancelsTouchesInView = NO;
+    [self addGestureRecognizer:tap];
     [self addGestureRecognizer:[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(held:)]];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionEndedNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(restyle) name:SGRLyricsTextDidChangeNotification object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(sgr_accessibilityChanged) name:UIContentSizeCategoryDidChangeNotification object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(sgr_accessibilityChanged) name:UIAccessibilityReduceMotionStatusDidChangeNotification object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(sgr_accessibilityChanged) name:UIAccessibilityDarkerSystemColorsStatusDidChangeNotification object:nil];
     // A locked phone leaves the card in its window, so the link has to be put down by the app going
     // away rather than by the view going: see scheduleLink.
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(scheduleLink) name:UIApplicationDidBecomeActiveNotification object:nil];
@@ -1124,12 +1155,15 @@ typedef struct {
 }
 
 - (void)dealloc {
+    [_link invalidate];
+    [NSObject cancelPreviousPerformRequestsWithTarget:self];
     [NSNotificationCenter.defaultCenter removeObserver:self];
     free(_spans);
     free(_breaks);
 }
 
 - (void)tapped:(UITapGestureRecognizer *)tap {
+    if (!_follow.hidden && CGRectContainsPoint(_follow.frame, [tap locationInView:self])) return;
     if (_extras && !_extras.hidden && CGRectContainsPoint(_extras.frame, [tap locationInView:self])) return;
     CGPoint point = [tap locationInView:_scroll];
     for (SGRKaraokeLineView *view in _shown.allValues) {
@@ -1156,6 +1190,11 @@ typedef struct {
         [self explainLine:view];
         return;
     }
+}
+
+- (void)sgr_accessibilityChanged {
+    _maxBlur = SGRIncreaseContrast() || SGRReduceMotion() ? 0 : kMaxBlur;
+    if (_lines) [self rebuild];
 }
 
 - (void)explainLine:(SGRKaraokeLineView *)view {
@@ -1187,6 +1226,7 @@ typedef struct {
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
     _browsing = YES;
+    _follow.hidden = _plain;
     for (SGRKaraokeLineView *view in _shown.allValues) view.blur = 0;
 }
 
@@ -1196,21 +1236,20 @@ typedef struct {
 
 // Plain text has no song to follow back to: it stays where it was scrolled to, as a page of text does.
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
-    if (!decelerate && !_plain) [self performSelector:@selector(followSong) withObject:nil afterDelay:kBrowseHold];
+    if (!decelerate && !_plain && !UIAccessibilityIsVoiceOverRunning()) [self performSelector:@selector(followSong) withObject:nil afterDelay:SGRLyricsBrowseHold];
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
-    if (!_plain) [self performSelector:@selector(followSong) withObject:nil afterDelay:kBrowseHold];
+    if (!_plain && !UIAccessibilityIsVoiceOverRunning()) [self performSelector:@selector(followSong) withObject:nil afterDelay:SGRLyricsBrowseHold];
 }
 
 - (void)followSong {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
     if (!_browsing) return;
     _browsing = NO;
-    [UIView animateWithDuration:0.7 delay:0 usingSpringWithDamping:0.9 initialSpringVelocity:0
-                        options:UIViewAnimationOptionAllowUserInteraction
-                     animations:^{ self->_scroll.contentOffset = CGPointZero; } completion:nil];
-    [self placeLinesAnimated:YES];
+    _follow.hidden = YES;
+    SGRAnimate(SGRMotionLayout, ^{ self->_scroll.contentOffset = CGPointZero; }, nil);
+    [self placeLinesAnimated:!SGRReduceMotion()];
 }
 
 - (void)didMoveToWindow {
@@ -1218,6 +1257,7 @@ typedef struct {
     if (!self.window) {
         [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
         _browsing = NO;
+        _follow.hidden = YES;
     }
     [self scheduleLink];
 }
@@ -1246,7 +1286,9 @@ typedef struct {
 - (void)startLink {
     if (!self.window || _link) return;
     if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
-    _link = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick)];
+    SGRLyricsClockTarget *target = [SGRLyricsClockTarget new];
+    target.owner = self;
+    _link = [CADisplayLink displayLinkWithTarget:target selector:@selector(tick)];
     _link.preferredFrameRateRange = CAFrameRateRangeMake(80, 120, 120);
     [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
 }
@@ -1273,6 +1315,10 @@ typedef struct {
     [super layoutSubviews];
     [self alignFade];
     _scroll.contentSize = self.bounds.size;
+    CGSize follow = [_follow sizeThatFits:CGSizeMake(MAX(0, self.bounds.size.width - 2 * _margin), 44)];
+    CGFloat followWidth = MIN(follow.width, MAX(0, self.bounds.size.width - 2 * _margin));
+    _follow.frame = CGRectMake(self.bounds.size.width - _margin - followWidth,
+        MAX(0, self.bounds.size.height - MAX(44, follow.height) - kExtrasBottom), followWidth, MAX(44, follow.height));
     [_credit sizeToFit];
     _credit.frame = CGRectMake(_margin, self.bounds.size.height - _credit.bounds.size.height - kCreditBottom,
                                _credit.bounds.size.width, _credit.bounds.size.height);
@@ -1330,10 +1376,12 @@ typedef struct {
 - (void)rebuild {
     [self dropLineViews];
     _browsing = NO;
+    _follow.hidden = YES;
     _scroll.contentOffset = CGPointZero;
     _builtWidth = self.bounds.size.width;
     CGFloat width = _builtWidth - 2 * _margin;
     if (width <= 0) return;
+    _fontSize = MIN(42, [[UIFontMetrics metricsForTextStyle:UIFontTextStyleTitle1] scaledValueForValue:kFontSize]);
     _font = [UIFont systemFontOfSize:_fontSize weight:UIFontWeightBold];
     SGRKaraokeStyle *style = _style = [self styleNow];
     NSArray<SGKaraokeLine *> *lines = _lines;
@@ -1539,11 +1587,12 @@ typedef struct {
 // One line's place in the stack: the anchor sits on the edge its text is aligned to, so it scales
 // toward its own text, and it dims and blurs with its distance from what is sung.
 - (void)placeLine:(SGRKaraokeLineView *)view at:(NSInteger)index animated:(BOOL)animated {
+    animated = animated && !SGRReduceMotion();
     CGFloat height = self.bounds.size.height;
     NSInteger distance = [self distanceOf:index], below = index - _focus;
     CGRect frame = CGRectMake(_margin, [self topOfLine:index], view.bounds.size.width, view.bounds.size.height);
     CGPoint center = CGPointMake(view.right ? CGRectGetMaxX(frame) : _margin, CGRectGetMidY(frame));
-    CGFloat scale = distance == 0 ? 1 : kDimScale;
+    CGFloat scale = distance == 0 || SGRReduceMotion() ? 1 : kDimScale;
     CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
     view.blur = distance == 0 || _browsing ? 0 : MIN(_maxBlur, distance * _blurPerLine);
     BOOL near = CGRectIntersectsRect(CGRectInset(self.bounds, 0, -height / 2), frame)

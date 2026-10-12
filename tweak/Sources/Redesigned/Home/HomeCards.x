@@ -57,6 +57,7 @@ static void style(UIView *button) {
     }
     if ([identifier isEqualToString:@"Components.UI.HomeCard"]) {
         roundCover(button);
+        SGRStyleMediaLabels(button);
         return;
     }
     static Class dj;

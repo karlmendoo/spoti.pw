@@ -26,9 +26,9 @@
 #import "Playlist.h"
 
 // Under the text rather than the whole row, as the Music app draws it; the trailing end clears the page margin.
-static const CGFloat kHairline = 0.5, kHairlineGap = 12;
+static const CGFloat kHairlineGap = SGRSpace12;
 
-static char kRowKey, kArtKey, kSubtitleKey, kLineKey, kToolbarKey;
+static char kRowKey, kArtKey, kTitleKey, kSubtitleKey, kLineKey, kToolbarKey;
 
 static UIView *identified(UIView *root, NSString *identifier, const void *cacheKey) {
     return SGRFindByIdentifier(root, identifier, cacheKey);
@@ -37,25 +37,6 @@ static UIView *identified(UIView *root, NSString *identifier, const void *cacheK
 static void clearSurface(UIView *view) {
     UIColor *color = view.backgroundColor;
     if (color && SGIsBaseSurface(color.CGColor)) view.backgroundColor = UIColor.clearColor;
-}
-
-static void applyHairline(UIView *row, CGFloat leading) {
-    CALayer *line = objc_getAssociatedObject(row, &kLineKey);
-    if (!line) {
-        line = [CALayer layer];
-        line.backgroundColor = [UIColor colorWithWhite:1 alpha:0.12].CGColor;
-        line.zPosition = 1;
-        objc_setAssociatedObject(row, &kLineKey, line, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    if (line.superlayer != row.layer) [row.layer addSublayer:line];
-    CGRect bounds = row.bounds;
-    CGRect frame = CGRectMake(leading, bounds.size.height - kHairline,
-                              MAX(0, bounds.size.width - leading - SGRSideMargin), kHairline);
-    if (CGRectEqualToRect(line.frame, frame)) return;
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    line.frame = frame;
-    [CATransaction commit];
 }
 
 static void applyRow(UIView *cell) {
@@ -83,7 +64,9 @@ static void applyRow(UIView *cell) {
         if (![label.textColor isEqual:SGRSecondary()]) label.textColor = SGRSecondary();
     });
 
-    applyHairline(row, leading);
+    SGRStyleText(identified(row, @"Track.Row.Content.Title", &kTitleKey), SGRTextPrimary, nil);
+    SGRStyleText(subtitle, SGRTextSecondary, SGRSecondary());
+    SGRStyleSeparator(row, &kLineKey, leading, SGRSideMargin);
 }
 
 %hook _TtC35ListUXPlatform_FreeTierPlaylistImpl25ElementCollectionViewCell

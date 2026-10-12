@@ -30,7 +30,6 @@
 
 // How much of the cover's height the dissolve into the field covers, and the scrim over the top of it that
 // keeps the status bar and the back button legible on a bright picture. The playlist's numbers: one page.
-static const CGFloat kDissolve = 0.46, kTopScrim = 140, kTopScrimAlpha = 0.28;
 // A header whose text begins nearer the top than this is one mid load, not one to measure the hero from;
 // and an artwork view narrower than this is a placeholder glyph rather than the cover.
 static const CGFloat kMinHero = 120, kMinCover = 80;
@@ -108,83 +107,19 @@ static void watch(UIView *view, const void *key, void (^laidOut)(UIView *view)) 
     SGRObserveLayout(view, laidOut);
 }
 
-#pragma mark - the cover, full bleed
+#pragma mark - the centered release cover
 
 // The picture across the top of the page with the field showing through the bottom of it. Two gradients
 // rather than a mask or a blur: a scrim over the top for the status bar, and under it a fade from the
 // picture to the very colour the page's field is drawing, so the two meet with nothing to see.
-@interface SGRAlbumHero : UIView
-@property (nonatomic, readonly) UIImageView *picture;
-@property (nonatomic, copy) UIColor *fieldColor;
-// The cover in Spotify's artwork view, and every cover it puts there afterwards: the hero keeps itself
-// right, rather than being handed a picture on each of the header's passes and staying empty between them.
+@interface SGRAlbumHero : SGRHeroArtwork
 - (void)followCover:(UIImageView *)source;
 @end
 
 @implementation SGRAlbumHero {
-    CAGradientLayer *_scrim, *_dissolve;
     __weak UIImageView *_cover;
 }
 
-- (instancetype)initWithFrame:(CGRect)frame {
-    if (!(self = [super initWithFrame:frame])) return nil;
-    self.userInteractionEnabled = NO;
-    self.accessibilityElementsHidden = YES;
-    self.clipsToBounds = YES;
-
-    _picture = [[UIImageView alloc] initWithFrame:self.bounds];
-    _picture.contentMode = UIViewContentModeScaleAspectFill;
-    _picture.clipsToBounds = YES;
-    _picture.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self addSubview:_picture];
-
-    _scrim = [CAGradientLayer layer];
-    _scrim.zPosition = 1;
-    _scrim.colors = @[(id)[UIColor colorWithWhite:0 alpha:kTopScrimAlpha].CGColor, (id)UIColor.clearColor.CGColor];
-    [self.layer addSublayer:_scrim];
-
-    _dissolve = [CAGradientLayer layer];
-    _dissolve.zPosition = 2;
-    [self.layer addSublayer:_dissolve];
-    self.fieldColor = SGRNeutralField();
-    // The colour is read off the main thread, so it can land after the last layout pass of the page.
-    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(sgr_fieldColorDidChange)
-                                               name:SGRFieldColorDidChangeNotification object:nil];
-    return self;
-}
-
-- (void)dealloc {
-    [NSNotificationCenter.defaultCenter removeObserver:self];
-}
-
-- (void)sgr_fieldColorDidChange {
-    if (self.superview) self.fieldColor = SGRAlbumFieldColor(self);
-}
-
-- (void)setFieldColor:(UIColor *)color {
-    if (!color || [_fieldColor isEqual:color]) return;
-    _fieldColor = [color copy];
-    // The clear end is the same colour with no alpha rather than +clearColor, so the fade keeps its hue
-    // instead of going through grey.
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    _dissolve.colors = @[(id)[color colorWithAlphaComponent:0].CGColor,
-                         (id)[color colorWithAlphaComponent:0.72].CGColor,
-                         (id)color.CGColor];
-    _dissolve.locations = @[@0, @0.62, @1];
-    [CATransaction commit];
-}
-
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    CGRect bounds = self.bounds;
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    _scrim.frame = CGRectMake(0, 0, bounds.size.width, MIN(kTopScrim, bounds.size.height));
-    CGFloat fade = round(bounds.size.height * kDissolve);
-    _dissolve.frame = CGRectMake(0, bounds.size.height - fade, bounds.size.width, fade);
-    [CATransaction commit];
-}
 
 - (void)followCover:(UIImageView *)source {
     if (!source) return;
@@ -200,8 +135,8 @@ static void watch(UIView *view, const void *key, void (^laidOut)(UIView *view)) 
 // and not one of the header's passes, is what filled the hero.
 - (void)takeCover:(UIImageView *)source late:(BOOL)late {
     UIImage *image = source.image;
-    if (!image || source.bounds.size.width < kMinCover || _picture.image == image) return;
-    _picture.image = image;
+    if (!image || source.bounds.size.width < kMinCover || self.picture.image == image) return;
+    [self showImage:image animated:late];
     // The page's field takes its colour from the same picture.
     SGRAlbumSetArtwork(self, image);
     static BOOL logged;
@@ -251,7 +186,6 @@ static void applyHero(UIView *header, UIView *cover, CGFloat bottom) {
     }
     if (height < kMinHero) return;
     setFrame(hero, CGRectMake(0, 0, header.bounds.size.width, height));
-    hero.fieldColor = SGRAlbumFieldColor(header);
 
     [hero followCover:coverImageIn(cover)];
     conceal(cover);
@@ -433,7 +367,7 @@ static void applyHeader(UIView *header, UIView *page) {
     // rest is the tallest it has been, so the picture does not change size as the header loads or scrolls.
     CGFloat rest = MAX([objc_getAssociatedObject(header, &kHeaderHeightKey) doubleValue], header.bounds.size.height);
     objc_setAssociatedObject(header, &kHeaderHeightKey, @(rest), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    CGFloat bottom = rest - SGRHeaderInfoBottom - [info contentHeightForWidth:header.bounds.size.width] + SGRHeaderInfoTitleRise;
+    CGFloat bottom = rest - SGRHeaderInfoBottom - [info contentHeightForWidth:header.bounds.size.width];
     UIView *cover = SGRFindByIdentifier(header, @"CreativeWorkPlatform.Components.UI.ArtWorkElement.WithCoverArt", &kCoverKey);
     if (cover) applyHero(header, cover, bottom);
 }

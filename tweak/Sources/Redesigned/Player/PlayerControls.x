@@ -20,7 +20,7 @@
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
 
-static const CGFloat kSkipGlyphSize = 32, kPlayGlyphSize = 44;
+static const CGFloat kSkipGlyphSize = 30, kPlayGlyphSize = 46;
 // A spinner that is still up this long after a state change is buffering, not a track starting.
 static const NSTimeInterval kSpinnerCheck = 0.6;
 
@@ -234,7 +234,11 @@ static UILabel *monospaced(UIView *host, NSString *identifier, const void *findK
     UIView *host = ((UIViewController *)self).viewIfLoaded;
     if (!host) return;
     UILabel *taken = monospaced(host, @"now-playing-time-take-label-internal", &kTakeKey);
-    monospaced(host, @"now-playing-time-remaning-label-internal", &kRemainingKey);
+    UILabel *remaining = monospaced(host, @"now-playing-time-remaning-label-internal", &kRemainingKey);
+    SGRStyleText(taken, SGRTextMetadata, SGRSecondary());
+    SGRStyleText(remaining, SGRTextMetadata, SGRSecondary());
+    SGRMonospacedDigits(taken);
+    SGRMonospacedDigits(remaining);
     // Whether Spotify's font has digits of one width shows in the descriptor's feature settings.
     if (!taken) return;
     static dispatch_once_t once;

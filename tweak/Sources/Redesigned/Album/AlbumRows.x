@@ -19,32 +19,12 @@
 
 // Under the text rather than the whole row, as the Music app draws it; the trailing end clears the page
 // margin.
-static const CGFloat kHairline = 0.5;
 
-static char kRowKey, kSubtitleKey, kLineKey;
+static char kRowKey, kTitleKey, kSubtitleKey, kLineKey;
 
 static void clearSurface(UIView *view) {
     UIColor *color = view.backgroundColor;
     if (color && SGIsBaseSurface(color.CGColor)) view.backgroundColor = UIColor.clearColor;
-}
-
-static void applyHairline(UIView *row) {
-    CALayer *line = objc_getAssociatedObject(row, &kLineKey);
-    if (!line) {
-        line = [CALayer layer];
-        line.zPosition = 1;
-        objc_setAssociatedObject(row, &kLineKey, line, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    line.backgroundColor = SGRHairline().CGColor;
-    if (line.superlayer != row.layer) [row.layer addSublayer:line];
-    CGRect bounds = row.bounds;
-    CGRect frame = CGRectMake(SGRSideMargin, bounds.size.height - kHairline,
-                              MAX(0, bounds.size.width - 2 * SGRSideMargin), kHairline);
-    if (CGRectEqualToRect(line.frame, frame)) return;
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    line.frame = frame;
-    [CATransaction commit];
 }
 
 static void applyRow(UIView *cell) {
@@ -64,7 +44,9 @@ static void applyRow(UIView *cell) {
         if (![label.textColor isEqual:SGRSecondary()]) label.textColor = SGRSecondary();
     });
 
-    applyHairline(row);
+    SGRStyleText(SGRFindByIdentifier(row, @"EncoreConsumerMobile.View.Granular.Title", &kTitleKey), SGRTextPrimary, nil);
+    SGRStyleText(subtitle, SGRTextSecondary, SGRSecondary());
+    SGRStyleSeparator(row, &kLineKey, SGRSideMargin, SGRSideMargin);
 }
 
 // Which cells of Element_List belong to an album's track list, answered once per content class: the same

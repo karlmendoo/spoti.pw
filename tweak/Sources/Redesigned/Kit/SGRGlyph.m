@@ -2,7 +2,7 @@
 #import "SGRGlyph.h"
 #import "SGRTokens.h"
 
-static const CGFloat kMinTouch = 44, kPressAlpha = 0.5, kPressScale = 0.9, kDisabledAlpha = 0.35;
+static const CGFloat kMinTouch = 44, kPressAlpha = 0.7, kPressScale = 0.97, kDisabledAlpha = 0.45;
 
 @implementation SGRGlyphView {
     NSString *_symbol;

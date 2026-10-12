@@ -11,6 +11,23 @@
 // accessibility reads are main thread only.
 #import <UIKit/UIKit.h>
 
+typedef NS_ENUM(NSInteger, SGRSpace) {
+    SGRSpace4 = 4, SGRSpace8 = 8, SGRSpace12 = 12, SGRSpace16 = 16,
+    SGRSpace20 = 20, SGRSpace24 = 24, SGRSpace32 = 32,
+};
+
+typedef NS_ENUM(NSInteger, SGRTextRole) {
+    SGRTextNavigation, SGRTextHero, SGRTextSection, SGRTextPrimary,
+    SGRTextSecondary, SGRTextMetadata, SGRTextPlayer,
+};
+UIFont *SGRType(SGRTextRole role);
+extern const CGFloat SGRRadiusControl;
+extern const CGFloat SGRRadiusSheet;
+extern const CGFloat SGRRadiusMiniPlayer;
+extern const NSTimeInterval SGRInteractionDuration;
+extern const CGFloat SGRPressScale;
+extern const NSTimeInterval SGRLyricsBrowseHold;
+
 extern const CGFloat SGRSideMargin;      // 16, the page's side margin
 extern const CGFloat SGRGrid;            // 8, every gap is a multiple of it
 extern const CGFloat SGRRadiusArtwork;   // 12, the player's cover

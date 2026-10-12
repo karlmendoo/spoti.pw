@@ -90,7 +90,7 @@ static void restyle(UIView *button) {
     if (added) [button addSubview:mine];
     mine.hidden = NO;
 
-    UIFont *font = SGRFont(UIFontTextStyleTitle2, UIFontWeightBold, UIContentSizeCategoryLarge);
+    UIFont *font = SGRType(SGRTextSection);
     if (![mine.font isEqual:font]) mine.font = font;
     if (![mine.text isEqualToString:theirs.text]) mine.text = theirs.text;
     if (![mine.textColor isEqual:theirs.textColor]) mine.textColor = theirs.textColor;

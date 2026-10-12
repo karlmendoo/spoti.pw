@@ -80,7 +80,7 @@ static NSString *wordIn(UIView *button) {
     CGRect bounds = self.bounds;
     if (self.fillColor) {
         if (![self.backgroundColor isEqual:self.fillColor]) self.backgroundColor = self.fillColor;
-        self.layer.cornerRadius = bounds.size.height / 2;
+        self.layer.cornerRadius = SGRRadiusControl;
         self.layer.cornerCurve = kCACornerCurveContinuous;
     } else {
         SGRGlassCapsuleInside(self, &kCapsuleGlassKey, bounds.size, YES);
@@ -141,7 +141,7 @@ static NSString *wordIn(UIView *button) {
 }
 
 - (void)sgr_down {
-    SGRAnimate(SGRMotionPress, ^{ self.transform = CGAffineTransformMakeScale(0.94, 0.94); }, nil);
+    SGRAnimate(SGRMotionPress, ^{ self.transform = CGAffineTransformMakeScale(SGRPressScale, SGRPressScale); }, nil);
 }
 
 - (void)sgr_up {
@@ -150,6 +150,13 @@ static NSString *wordIn(UIView *button) {
 
 - (void)sgr_tap {
     SGRActivate(self.source);
+}
+
+- (BOOL)accessibilityActivate {
+    if (!self.enabled || !self.source) return NO;
+    [self sendActionsForControlEvents:UIControlEventTouchDown];
+    [self sendActionsForControlEvents:UIControlEventTouchUpInside];
+    return YES;
 }
 
 @end
@@ -384,7 +391,7 @@ static BOOL indicatorOn(UIView *button, BOOL *found) {
 }
 
 - (void)sgr_down {
-    SGRAnimate(SGRMotionPress, ^{ self.transform = CGAffineTransformMakeScale(0.92, 0.92); }, nil);
+    SGRAnimate(SGRMotionPress, ^{ self.transform = CGAffineTransformMakeScale(SGRPressScale, SGRPressScale); }, nil);
 }
 
 - (void)sgr_up {
@@ -404,6 +411,13 @@ static BOOL indicatorOn(UIView *button, BOOL *found) {
             if (button.source) [button feedFrom:button.source];
         });
     }
+}
+
+- (BOOL)accessibilityActivate {
+    if (!self.enabled || !self.source) return NO;
+    [self sendActionsForControlEvents:UIControlEventTouchDown];
+    [self sendActionsForControlEvents:UIControlEventTouchUpInside];
+    return YES;
 }
 
 @end

@@ -6,11 +6,11 @@
 #import "SGRRestyle.h"
 #import "SGRTokens.h"
 
-const CGFloat SGRHeaderInfoBottom = 14;
+const CGFloat SGRHeaderInfoBottom = 16;
 const CGFloat SGRHeaderInfoTitleRise = 56;
 
 // The text kSide in from the edges; Play at least kPlayWidth wide, the Music app's; the gaps between.
-static const CGFloat kSide = 20, kPlayWidth = 148, kRowSpacing = 16, kRowAbove = 16, kAboutAbove = 14;
+static const CGFloat kSide = SGRSpace20, kPlayWidth = 160, kRowSpacing = SGRSpace12, kRowAbove = SGRSpace20, kAboutAbove = SGRSpace12;
 
 static UILabel *infoLabel(UIView *parent, UIFont *font, UIColor *color, NSInteger lines, NSTextAlignment alignment) {
     UILabel *label = [UILabel new];
@@ -40,15 +40,15 @@ static BOOL setText(UILabel *label, NSString *text) {
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (!(self = [super initWithFrame:frame])) return nil;
-    _title = infoLabel(self, SGRFont(UIFontTextStyleTitle2, UIFontWeightBold, UIContentSizeCategoryExtraLarge),
+    _title = infoLabel(self, SGRType(SGRTextHero),
                        SGRPrimary(), 2, NSTextAlignmentCenter);
     _title.accessibilityTraits = UIAccessibilityTraitHeader;
-    _creator = infoLabel(self, SGRFont(UIFontTextStyleBody, UIFontWeightRegular, UIContentSizeCategoryExtraLarge),
+    _creator = infoLabel(self, SGRType(SGRTextSecondary),
                          SGRSecondary(), 1, NSTextAlignmentCenter);
-    _length = infoLabel(self, SGRFont(UIFontTextStyleFootnote, UIFontWeightRegular, UIContentSizeCategoryExtraLarge),
+    _length = infoLabel(self, SGRType(SGRTextMetadata),
                         SGRTertiary(), 1, NSTextAlignmentCenter);
-    _about = infoLabel(self, SGRFont(UIFontTextStyleFootnote, UIFontWeightRegular, UIContentSizeCategoryExtraLarge),
-                       SGRSecondary(), 2, NSTextAlignmentNatural);
+    _about = infoLabel(self, SGRType(SGRTextMetadata),
+                       SGRSecondary(), 2, NSTextAlignmentCenter);
 
     _shuffle = [[SGRMirrorButton alloc] initWithFrame:CGRectZero];
     _shuffle.fallbackGlyph = [UIImage systemImageNamed:@"shuffle"];
@@ -64,6 +64,28 @@ static BOOL setText(UILabel *label, NSString *text) {
         [self addSubview:button];
     }
     return self;
+}
+
+- (void)setArtistPresentation:(BOOL)artistPresentation {
+    if (_artistPresentation == artistPresentation) return;
+    _artistPresentation = artistPresentation;
+    [self sgr_updateType];
+    [self setNeedsLayout];
+}
+
+- (void)sgr_updateType {
+    _title.font = SGRType(_artistPresentation ? SGRTextNavigation : SGRTextHero);
+    _creator.font = SGRType(SGRTextSecondary);
+    _length.font = _about.font = SGRType(SGRTextMetadata);
+    for (UILabel *label in @[_title, _creator, _length, _about]) {
+        label.textAlignment = _artistPresentation ? NSTextAlignmentNatural : NSTextAlignmentCenter;
+    }
+}
+
+- (void)traitCollectionDidChange:(UITraitCollection *)previous {
+    [super traitCollectionDidChange:previous];
+    [self sgr_updateType];
+    [self setNeedsLayout];
 }
 
 // Touches only for the buttons and, where there is one, the creator line: the rest of the text lets a
@@ -150,13 +172,13 @@ static BOOL setText(UILabel *label, NSString *text) {
     UILabel *previous = nil;
     for (UILabel *label in @[_title, _creator, _length]) {
         if (label.hidden) continue;
-        if (previous) height += previous == _creator ? 4 : 2;
+        if (previous) height += SGRSpace4;
         height += ceil([label sizeThatFits:CGSizeMake(text, CGFLOAT_MAX)].height);
         previous = label;
     }
-    if (previous) height += kRowAbove;
-    height += SGRActionHeight;
     if (!_about.hidden) height += kAboutAbove + ceil([_about sizeThatFits:CGSizeMake(text, CGFLOAT_MAX)].height);
+    if (previous || !_about.hidden) height += kRowAbove;
+    height += SGRActionHeight;
     return height;
 }
 
@@ -168,28 +190,27 @@ static BOOL setText(UILabel *label, NSString *text) {
     UILabel *previous = nil;
     for (UILabel *label in @[_title, _creator, _length]) {
         if (label.hidden) continue;
-        if (previous) y += previous == _creator ? 4 : 2;
+        if (previous) y += SGRSpace4;
         CGFloat height = ceil([label sizeThatFits:CGSizeMake(text, CGFLOAT_MAX)].height);
         label.frame = CGRectMake(kSide, y, text, height);
         y += height;
         previous = label;
     }
-    if (previous) y += kRowAbove;
+    if (!_about.hidden) {
+        y += kAboutAbove;
+        _about.frame = CGRectMake(kSide, y, text, ceil([_about sizeThatFits:CGSizeMake(text, CGFLOAT_MAX)].height));
+        y = CGRectGetMaxY(_about.frame);
+    }
+    if (previous || !_about.hidden) y += kRowAbove;
 
     // Play on the middle of the page, the other two hung off its sides, so it holds its place whether both
     // are there or not.
     CGFloat side = SGRActionHeight;
-    CGFloat playWidth = MAX(kPlayWidth, [_play sgr_width]);
+    CGFloat playWidth = MIN(MAX(kPlayWidth, [_play sgr_width]), MAX(0, width - 2 * (kSide + kRowSpacing + side)));
     CGRect play = CGRectMake(round((width - playWidth) / 2), y, playWidth, side);
     _play.frame = play;
     _shuffle.frame = CGRectMake(CGRectGetMinX(play) - kRowSpacing - side, y, side, side);
     _trailing.frame = CGRectMake(CGRectGetMaxX(play) + kRowSpacing, y, side, side);
-    y += side;
-
-    if (!_about.hidden) {
-        y += kAboutAbove;
-        _about.frame = CGRectMake(kSide, y, text, ceil([_about sizeThatFits:CGSizeMake(text, CGFLOAT_MAX)].height));
-    }
 }
 
 @end

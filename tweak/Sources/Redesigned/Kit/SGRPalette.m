@@ -273,11 +273,44 @@ static UIColor *tintOf(CGImageRef image, UIColor *surface) {
 
 @implementation SGRPalette
 
+// Queue-confined, bounded across Home, entity pages and the player. Keys never retain source
+// images and cannot alias when a UIImage address is reused after a rapid skip.
+static NSString *imageIdentity(UIImage *image) {
+    static char key;
+    NSString *identity = objc_getAssociatedObject(image, &key);
+    if (!identity) {
+        identity = NSUUID.UUID.UUIDString;
+        objc_setAssociatedObject(image, &key, identity, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return identity;
+}
+
+static NSCache<NSString *, SGRPalette *> *palettes(void) {
+    static NSCache *cache;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        cache = [NSCache new];
+        cache.countLimit = 64;
+        cache.totalCostLimit = 8 * 1024 * 1024;
+    });
+    return cache;
+}
+
 + (void)paletteForImage:(UIImage *)image request:(SGRPaletteRequest)request completion:(void (^)(SGRPalette *palette))completion {
     if (!completion) return;
     CGFloat ceiling = SGRIncreaseContrast() ? kMaxLuminanceContrast : kMaxLuminance;
     CGFloat flowCeiling = SGRIncreaseContrast() ? kMaxLuminance : kFlowLuminanceMax;
     dispatch_async(paletteQueue(), ^{
+        CGSize area = request.backdropSize;
+        NSUInteger pixels = area.width > 0 && area.height > 0
+            ? (NSUInteger)MIN(kBackdropMaxHeight, MAX(1, round(kBackdropWidth * area.height / area.width))) : 0;
+        NSString *key = image ? [NSString stringWithFormat:@"%@:%lu:%d:%d:%d:%.3f:%.3f", imageIdentity(image),
+            (unsigned long)pixels, request.amoled, request.dissolve, request.flow, ceiling, flowCeiling] : nil;
+        SGRPalette *cached = key ? [palettes() objectForKey:key] : nil;
+        if (cached) {
+            dispatch_async(dispatch_get_main_queue(), ^{ completion(cached); });
+            return;
+        }
         SGRPalette *palette = nil;
         CGImageRef cg = image.CGImage;
         UIColor *edge = cg && CGImageGetWidth(cg) && CGImageGetHeight(cg) ? edgeColorOf(cg) : nil;
@@ -286,7 +319,6 @@ static UIColor *tintOf(CGImageRef image, UIColor *surface) {
             palette = [SGRPalette new];
             palette.edgeColor = edge;
             palette.fieldColor = fieldColorFor(edge, ceiling);
-            CGSize area = request.backdropSize;
             if (area.width > 0 && area.height > 0) {
                 size_t width = (size_t)kBackdropWidth, height = (size_t)MIN(kBackdropMaxHeight, round(kBackdropWidth * area.height / area.width));
                 CGImageRef blurred = newBlurred(cg, width, MAX(height, 1), kBackdropSigma);
@@ -304,6 +336,11 @@ static UIColor *tintOf(CGImageRef image, UIColor *surface) {
             static dispatch_once_t once;
             double ms = (CFAbsoluteTimeGetCurrent() - start) * 1000;
             dispatch_once(&once, ^{ SGLog(@"redesign kit: first palette %@ from %zux%zu in %.1f ms", palette.fieldColor, CGImageGetWidth(cg), CGImageGetHeight(cg), ms); });
+            NSUInteger cost = 512;
+            for (UIImage *bitmap in @[palette.backdrop ?: UIImage.new, palette.dissolve ?: UIImage.new]) {
+                if (bitmap.CGImage) cost += CGImageGetBytesPerRow(bitmap.CGImage) * CGImageGetHeight(bitmap.CGImage);
+            }
+            if (key) [palettes() setObject:palette forKey:key cost:cost];
         }
         dispatch_async(dispatch_get_main_queue(), ^{ completion(palette); });
     });

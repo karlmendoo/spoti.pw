@@ -35,7 +35,6 @@
 
 // How much of the cover's height the dissolve into the field covers, and the scrim over the top of it that
 // keeps the status bar and the back button legible on a bright picture.
-static const CGFloat kDissolve = 0.46, kTopScrim = 140, kTopScrimAlpha = 0.28;
 // A header whose cover square is smaller than this is one mid collapse or mid load, not one to measure
 // the hero from; and an artwork view narrower than this is a placeholder glyph rather than the cover.
 static const CGFloat kMinHero = 120, kMinCover = 80;
@@ -98,59 +97,18 @@ static UIView *firstOfClass(UIView *root, Class wanted) {
     return found;
 }
 
-#pragma mark - the cover, full bleed
+#pragma mark - the centered release cover
 
 // The picture across the top of the page, a scrim over its top for the status bar, and its bottom masked
 // away so the field shows through whatever colour it is at that height: pulled down, the hero ends where
 // the field is already fading to black, and a fade to the field's flat colour showed as an edge.
-@interface SGRPlaylistHero : UIView
-@property (nonatomic, readonly) UIImageView *picture;
-@property (nonatomic) CGFloat coverPixels;   // the widest copy of the artwork it has been shown
-// The cover in Spotify's artwork view, and every cover it puts there afterwards: the hero keeps itself
-// right, rather than being handed a picture on each of the header's passes and staying empty between them.
+@interface SGRPlaylistHero : SGRHeroArtwork
+@property (nonatomic) CGFloat coverPixels;
 - (void)followCover:(UIImageView *)source;
 @end
 
 @implementation SGRPlaylistHero {
-    CAGradientLayer *_scrim, *_dissolve;   // the dissolve is the layer's mask
     __weak UIImageView *_cover;
-}
-
-- (instancetype)initWithFrame:(CGRect)frame {
-    if (!(self = [super initWithFrame:frame])) return nil;
-    self.userInteractionEnabled = NO;
-    self.accessibilityElementsHidden = YES;
-    self.clipsToBounds = YES;
-
-    _picture = [[UIImageView alloc] initWithFrame:self.bounds];
-    _picture.contentMode = UIViewContentModeScaleAspectFill;
-    _picture.clipsToBounds = YES;
-    _picture.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self addSubview:_picture];
-
-    // Above the picture's own layer whatever else is added to the view later.
-    _scrim = [CAGradientLayer layer];
-    _scrim.zPosition = 1;
-    _scrim.colors = @[(id)[UIColor colorWithWhite:0 alpha:kTopScrimAlpha].CGColor, (id)UIColor.clearColor.CGColor];
-    [self.layer addSublayer:_scrim];
-
-    _dissolve = [CAGradientLayer layer];
-    _dissolve.colors = @[(id)UIColor.blackColor.CGColor, (id)UIColor.blackColor.CGColor,
-                         (id)[UIColor colorWithWhite:0 alpha:0.28].CGColor, (id)UIColor.clearColor.CGColor];
-    self.layer.mask = _dissolve;
-    return self;
-}
-
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    CGRect bounds = self.bounds;
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    _scrim.frame = CGRectMake(0, 0, bounds.size.width, MIN(kTopScrim, bounds.size.height));
-    CGFloat height = MAX(1, bounds.size.height), fade = round(height * kDissolve);
-    _dissolve.frame = bounds;
-    _dissolve.locations = @[@0, @((height - fade) / height), @((height - fade * 0.38) / height), @1];
-    [CATransaction commit];
 }
 
 - (void)followCover:(UIImageView *)source {
@@ -172,10 +130,10 @@ static UIView *firstOfClass(UIView *root, Class wanted) {
 // watch, and not one of the header's passes, is what filled the hero.
 - (void)takeCover:(UIImageView *)source late:(BOOL)late {
     UIImage *image = source.image;
-    if (!image || source.bounds.size.width < kMinHero || _picture.image == image) return;
+    if (!image || source.bounds.size.width < kMinHero || self.picture.image == image) return;
 
     self.coverPixels = image.size.width;
-    _picture.image = image;
+    [self showImage:image animated:late];
     // The page's field takes its colour from the same picture.
     SGRPlaylistSetArtwork(self, image);
     static BOOL logged;
@@ -543,7 +501,7 @@ static void applyHeader(UIView *layout) {
         rest = block.bounds.size.height;
         objc_setAssociatedObject(block, &kBlockHeightKey, @(rest), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    CGFloat reach = rest - SGRHeaderInfoBottom - [info contentHeightForWidth:info.bounds.size.width] + SGRHeaderInfoTitleRise;
+    CGFloat reach = rest - SGRHeaderInfoBottom - [info contentHeightForWidth:info.bounds.size.width];
     if (cover) applyHero(layout, cover, plane, block, reach, stretch);
 }
 

@@ -191,7 +191,7 @@ static CGFloat screenRadius(void) {
                 }
                 to = CGRectOffset(to, -sheet.origin.x, -sheet.origin.y);
                 self->_cover.frame = CGRectOffset(lerpRect(from, to, t), sheet.origin.x, sheet.origin.y);
-                self->_cover.layer.cornerRadius = lerp(from.size.width / 2, SGRRadiusArtwork * scale, t);
+                self->_cover.layer.cornerRadius = lerp(SGRRadiusThumb, SGRRadiusArtwork * scale, t);
             }
         }
     }];

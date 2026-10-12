@@ -13,9 +13,10 @@
 //   progress line 370x2 at the bottom. The glass pane goes on the container's view.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRRepaint.h"
+#import "Redesigned/Kit/SGRContentStyle.h"
 #import "NowPlayingBar.h"
 
-static const CGFloat kCardRadius = 24;
+static const CGFloat kCardRadius = 18;
 static char kGlassKey;
 static __weak UIVisualEffectView *sg_cardGlass;
 static __weak UIView *sg_cardArtwork;
@@ -74,21 +75,36 @@ static void restyleCardContent(UIView *card) {
         }
         UIView *outer = v;
         for (UIView *u = v; u && u != card && CGSizeEqualToSize(u.bounds.size, size); u = u.superview) {
-            roundView(u, size.width / 2);
+            roundView(u, SGRRadiusThumb);
             u.clipsToBounds = YES;
             outer = u;
         }
         sg_cardArtwork = outer;
     });
+    __block UIView *progress = nil;
+    __block CGFloat leading = 0, trailing = card.bounds.size.width - SGRSpace12;
     SGForEachView(card, ^(UIView *v) {
-        CGRect f = v.frame;
-        if (f.size.height > 3 || f.size.width < 200 || v.superview.bounds.size.height < 40) return;
-        CGRect target = CGRectMake(52, card.bounds.size.height - 6, 226, 2);
-        if (CGRectEqualToRect(f, target)) return;
-        v.frame = target;
-        [v setNeedsLayout];
-        [v layoutIfNeeded];
+        if ([v isKindOfClass:UILabel.class] && !v.hidden && v.alpha > 0.01) {
+            CGRect text = SGFrameIn(v, card);
+            if (text.size.width > 60) {
+                leading = MAX(leading, text.origin.x);
+                SGRStyleText(v, SGRTextSecondary, nil);
+            }
+        }
+        if ([v isKindOfClass:UIControl.class] && v.bounds.size.width < 80) {
+            CGRect control = SGFrameIn(v, card);
+            if (control.origin.x > card.bounds.size.width / 2) trailing = MIN(trailing, control.origin.x - SGRSpace8);
+        }
+        // Move only the full progress track; its fill keeps the width Spotify's clock sets.
+        if (v.bounds.size.height > 3 || v.bounds.size.width < card.bounds.size.width * 0.85
+            || v.superview.bounds.size.height < 40) return;
+        if (!progress || v.bounds.size.width > progress.bounds.size.width) progress = v;
     });
+    if (progress && leading > 0 && trailing > leading) {
+        CGRect inCard = CGRectMake(leading, card.bounds.size.height - SGRSpace4, trailing - leading, 1);
+        CGRect target = [progress.superview convertRect:inCard fromView:card];
+        if (!CGRectEqualToRect(progress.frame, target)) progress.frame = target;
+    }
 }
 
 static void styleNowPlayingBar(UIViewController *container) {

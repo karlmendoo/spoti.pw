@@ -33,3 +33,5 @@
 #import "SGRBridges.h"
 #import "SGRRepaint.h"
 #import "SGRAccent.h"
+#import "SGRHeroArtwork.h"
+#import "SGRContentStyle.h"

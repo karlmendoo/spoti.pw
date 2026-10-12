@@ -157,11 +157,12 @@ static UILabel *titleIn(UIView *header) {
 static void layoutTitle(UIView *header, UIView *spotifyTitle, CGFloat leading, CGFloat trailing, CGFloat middle) {
     UILabel *title = titleIn(header);
     NSString *text = textIn(spotifyTitle);
+    if ([text isEqualToString:@"Your Library"]) text = @"Library";
     if (text.length && ![title.text isEqualToString:text]) {
         title.text = text;
         title.accessibilityLabel = text;
     }
-    UIFont *font = SGRFont(UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
+    UIFont *font = SGRType(SGRTextNavigation);
     if (![title.font isEqual:font]) title.font = font;
 
     CGFloat height = ceil(font.lineHeight);

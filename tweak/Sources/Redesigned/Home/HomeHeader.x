@@ -124,7 +124,7 @@ static void layoutHeader(UIViewController *page) {
         title.text = text;
         title.accessibilityLabel = text;
     }
-    UIFont *font = SGRFont(UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
+    UIFont *font = SGRType(SGRTextNavigation);
     if (![title.font isEqual:font]) title.font = font;
 
     CGFloat trailing = face ? CGRectGetMinX([stack convertRect:face.frame toView:header]) - SGRGrid : header.bounds.size.width - SGRSideMargin;

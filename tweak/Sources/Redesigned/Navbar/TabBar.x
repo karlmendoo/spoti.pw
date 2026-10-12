@@ -109,6 +109,13 @@ static UIImage *glyphOf(UIView *item, BOOL active) {
     if (!live) return nil;
     CGSize size = live.bounds.size;
     id icon = encoreIconOf(live);
+    NSString *name = [icon respondsToSelector:@selector(name)] ? [[icon name] lowercaseString] : nil;
+    NSString *symbol = nil;
+    if ([item.accessibilityIdentifier isEqualToString:@"TabBar.Item.Home"] || [name isEqualToString:@"home"]) symbol = active ? @"house.fill" : @"house";
+    else if ([name isEqualToString:@"search"]) symbol = @"magnifyingglass";
+    else if ([name isEqualToString:@"collection"] || [name isEqualToString:@"library"]) symbol = active ? @"square.stack.fill" : @"square.stack";
+    if (symbol) return [UIImage systemImageNamed:symbol withConfiguration:
+        [UIImageSymbolConfiguration configurationWithPointSize:22 weight:UIImageSymbolWeightRegular]];
     Class viewClass = NSClassFromString(@"SPTEncoreIconView");
     if (icon && viewClass) {
         static NSCache<NSString *, UIImage *> *cache;
@@ -354,7 +361,8 @@ static void syncBar(UIView *stockBar) {
         [host addSubview:bar];
         objc_setAssociatedObject(stockBar, &kHostKey, host, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    bar.tintColor = SGRAccent();
+    bar.tintColor = SGRPrimary();
+    bar.unselectedItemTintColor = SGRSecondary();
     UIView *host = objc_getAssociatedObject(stockBar, &kHostKey);
 
     for (UIView *sub in stockBar.subviews) {
@@ -390,6 +398,7 @@ static void syncBar(UIView *stockBar) {
     BOOL missing = NO;
     for (NSUInteger i = 0; i < sources.count; i++) {
         UITabBarItem *item = bar.items[i];
+        item.accessibilityLabel = labelIn(sources[i]).text;
         if (!item.image) item.image = glyphOf(sources[i], NO);
         if (!item.selectedImage || item.selectedImage == item.image) item.selectedImage = glyphOf(sources[i], YES);
         missing |= !item.image || !item.selectedImage;
