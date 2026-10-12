@@ -85,6 +85,15 @@ void SGPrepareFeedback(NSInteger feedback) {}
 
 #pragma mark - Shared/LyricsSources
 
+// The recorded player harness has no Genius service. Keep the real lyrics presentation linked
+// without making network requests; MeaningSheet is exercised by the lyrics harness.
+#import "Shared/LyricsMeanings/Meanings.h"
+void SGLyricsMeaningsFor(NSString *trackID, NSArray<SGKaraokeLine *> *lines,
+    void (^done)(NSDictionary<NSNumber *, NSArray<SGLyricsMeaning *> *> *)) {
+    if (done) done(@{});
+}
+void SGRShowMeanings(NSString *lineText, NSArray<SGLyricsMeaning *> *meanings) {}
+
 NSString *SGLyricsCreditFor(NSString *trackID) { return @"the harness"; }
 
 #pragma mark - Shared/Lyrics/KaraokeSource.x
