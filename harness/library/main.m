@@ -382,6 +382,7 @@ static UIView *chips(UIView *filters) {
     });
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self report:@"first look"];
+        NSLog(@"[harness] library snapshot ready");
     });
     if (back) {
         // Opening a playlist and coming back: the page lays out again, nothing else changes.

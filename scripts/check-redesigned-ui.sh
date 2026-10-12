@@ -55,12 +55,18 @@ capture() {
     app=$(find "harness/$part/build" -name '*.app' -type d | head -1)
     xcrun simctl install "$DEVICE" "$app"
     xcrun simctl launch --stdout="$LOGS/$shot-stdout.log" --stderr="$LOGS/$shot-stderr.log" "$DEVICE" "$bundle" "$@"
-    if [ "$shot" = playlist ]; then
-        wait_for_result "$LOGS/$shot-stderr.log" 'playlist snapshot ready'
-        sleep 1
-    else
-        sleep 5
-    fi
+    case "$shot" in
+        album) wait_for_result "$LOGS/$shot-stderr.log" 'late: Play.s right shows' ;;
+        playlist) wait_for_result "$LOGS/$shot-stderr.log" 'playlist snapshot ready' ;;
+        liked) wait_for_result "$LOGS/$shot-stderr.log" 'liked: after the shuffle.s parent laid out' ;;
+        artist) wait_for_result "$LOGS/$shot-stderr.log" 'pinned more:' ;;
+        library) wait_for_result "$LOGS/$shot-stderr.log" 'library snapshot ready' ;;
+        player) wait_for_result "$LOGS/$shot-stderr.log" 'footer glyphs end at' ;;
+        lyrics) wait_for_result "$LOGS/$shot-stderr.log" 'lyrics snapshot ready' ;;
+        tabbar) wait_for_result "$LOGS/$shot-stderr.log" 'none screen' ;;
+    esac
+    # Let the completed layout reach the compositor and transient system banners expire.
+    sleep 3
     xcrun simctl io "$DEVICE" screenshot "out/ui-checks/$shot.png"
     xcrun simctl terminate "$DEVICE" "$bundle"
 }

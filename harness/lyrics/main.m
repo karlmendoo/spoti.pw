@@ -228,6 +228,10 @@ static void timedTick(id self, SEL _cmd) {
     }];
     self.window.rootViewController = root;
     [self.window makeKeyAndVisible];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [karaoke layoutIfNeeded];
+        NSLog(@"[harness] lyrics snapshot ready");
+    });
     if ([args objectForKey:@"openMenu"]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)([args doubleForKey:@"openMenu"] * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             for (UIView *view in karaoke.subviews) {
