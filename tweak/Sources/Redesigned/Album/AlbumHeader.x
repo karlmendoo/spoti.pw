@@ -1,7 +1,6 @@
-// Album redesign: the header the Music app gives an album (iOS 26.4), the same one the playlist redesign
-// gives a playlist. The cover runs full bleed across the top of the page and dissolves into the page's
-// colour; the title, the artist and the kind and date are centred on the bottom of that dissolve; and under
-// them one row -- shuffle, a white Play capsule, and add.
+// Album redesign: a centered release cover on the artwork-derived field, followed by
+// the title, creator, metadata, description and a responsive native action row. Spotify
+// owns the original header height, collapse/navigation behavior, content and button actions.
 //
 // Tree (trees/clean/album/01.txt:39-152). The header is one element of the page's scrolling stack,
 // id=CreativeWorkPlatform.Components.UI.CreativeWorkHeader, a plain UIView whose height the element framework
@@ -28,8 +27,6 @@
 #import "Redesigned/Kit/SGRKit.h"
 #import "Album.h"
 
-// How much of the cover's height the dissolve into the field covers, and the scrim over the top of it that
-// keeps the status bar and the back button legible on a bright picture. The playlist's numbers: one page.
 // A header whose text begins nearer the top than this is one mid load, not one to measure the hero from;
 // and an artwork view narrower than this is a placeholder glyph rather than the cover.
 static const CGFloat kMinHero = 120, kMinCover = 80;
@@ -109,9 +106,7 @@ static void watch(UIView *view, const void *key, void (^laidOut)(UIView *view)) 
 
 #pragma mark - the centered release cover
 
-// The picture across the top of the page with the field showing through the bottom of it. Two gradients
-// rather than a mask or a blur: a scrim over the top for the status bar, and under it a fade from the
-// picture to the very colour the page's field is drawing, so the two meet with nothing to see.
+// A square cover shared with the Kit; the page follows Spotify's asynchronous image updates.
 @interface SGRAlbumHero : SGRHeroArtwork
 - (void)followCover:(UIImageView *)source;
 @end

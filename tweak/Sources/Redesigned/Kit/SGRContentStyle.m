@@ -76,7 +76,7 @@ void SGRStyleSheet(UIViewController *controller) {
     UISheetPresentationController *sheet = controller.sheetPresentationController;
     if (!sheet) return;
     sheet.prefersGrabberVisible = YES;
-    sheet.preferredCornerRadius = @(SGRRadiusSheet);
+    sheet.preferredCornerRadius = SGRRadiusSheet;
     sheet.prefersEdgeAttachedInCompactHeight = YES;
     sheet.widthFollowsPreferredContentSizeWhenEdgeAttached = YES;
 }

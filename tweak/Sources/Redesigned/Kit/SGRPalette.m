@@ -15,8 +15,8 @@ static const CGFloat kFadeFrom = 0.55, kDissolveOpaque = 0.85;
 static const CGFloat kTintLuminance = 0.05, kTintShare = 0.35;
 // A moving field's colours: luminance held between these (the ceiling 0.07 with Increase Contrast, as a
 // field's), saturation lifted by this much up to a cap, and a near-black one lifted by at most this factor.
-static const CGFloat kFlowLuminanceMin = 0.03, kFlowLuminanceMax = 0.13;
-static const CGFloat kFlowSaturationLift = 1.25, kFlowSaturationMax = 0.9, kFlowMaxLift = 4;
+static const CGFloat kFlowLuminanceMin = 0.03, kFlowLuminanceMax = 0.08;
+static const CGFloat kFlowSaturationLift = 1.12, kFlowSaturationMax = 0.7, kFlowMaxLift = 4;
 
 @interface SGRPalette ()
 @property (nonatomic, readwrite) UIColor *edgeColor;
@@ -337,9 +337,9 @@ static NSCache<NSString *, SGRPalette *> *palettes(void) {
             double ms = (CFAbsoluteTimeGetCurrent() - start) * 1000;
             dispatch_once(&once, ^{ SGLog(@"redesign kit: first palette %@ from %zux%zu in %.1f ms", palette.fieldColor, CGImageGetWidth(cg), CGImageGetHeight(cg), ms); });
             NSUInteger cost = 512;
-            for (UIImage *bitmap in @[palette.backdrop ?: UIImage.new, palette.dissolve ?: UIImage.new]) {
-                if (bitmap.CGImage) cost += CGImageGetBytesPerRow(bitmap.CGImage) * CGImageGetHeight(bitmap.CGImage);
-            }
+            CGImageRef backdrop = palette.backdrop.CGImage, dissolve = palette.dissolve.CGImage;
+            if (backdrop) cost += CGImageGetBytesPerRow(backdrop) * CGImageGetHeight(backdrop);
+            if (dissolve) cost += CGImageGetBytesPerRow(dissolve) * CGImageGetHeight(dissolve);
             if (key) [palettes() setObject:palette forKey:key cost:cost];
         }
         dispatch_async(dispatch_get_main_queue(), ^{ completion(palette); });

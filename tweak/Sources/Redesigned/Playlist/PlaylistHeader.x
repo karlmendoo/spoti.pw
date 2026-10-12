@@ -1,7 +1,6 @@
-// Playlist redesign: the header the Music app gives a playlist (iOS 26.4). The cover runs full bleed across
-// the top of the page and dissolves into the page's colour; the title, the creator and the length are centred
-// on the bottom of that dissolve; under them one row -- shuffle, a white Play capsule, and save (someone
-// else's playlist) or download (one's own, Liked Songs) -- and the description last.
+// Playlist redesign: a centered release cover on the artwork-derived field, followed by
+// the title, creator, metadata, description and a responsive native action row. Spotify
+// owns the original header height, collapse/navigation behavior, content and button actions.
 //
 // Tree (trees/clean/playlist/01.txt:640-869). Spotify's header is id=PL.Header, and at rest its
 // HeaderContentLayout starts at the very top of the page. It holds exactly two things:
@@ -33,8 +32,6 @@
 #import "Playlist.h"
 #import <objc/message.h>
 
-// How much of the cover's height the dissolve into the field covers, and the scrim over the top of it that
-// keeps the status bar and the back button legible on a bright picture.
 // A header whose cover square is smaller than this is one mid collapse or mid load, not one to measure
 // the hero from; and an artwork view narrower than this is a placeholder glyph rather than the cover.
 static const CGFloat kMinHero = 120, kMinCover = 80;
@@ -99,9 +96,7 @@ static UIView *firstOfClass(UIView *root, Class wanted) {
 
 #pragma mark - the centered release cover
 
-// The picture across the top of the page, a scrim over its top for the status bar, and its bottom masked
-// away so the field shows through whatever colour it is at that height: pulled down, the hero ends where
-// the field is already fading to black, and a fade to the field's flat colour showed as an edge.
+// A square cover shared with the Kit; the page follows Spotify's asynchronous image updates.
 @interface SGRPlaylistHero : SGRHeroArtwork
 @property (nonatomic) CGFloat coverPixels;
 - (void)followCover:(UIImageView *)source;

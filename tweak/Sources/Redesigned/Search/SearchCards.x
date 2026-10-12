@@ -1,12 +1,5 @@
-// Search redesign: each category card as Liquid Glass tinted by its own colour. Under the glass, the card's colour runs
-// diagonally from itself at the top leading corner to a darker shade of it at the bottom trailing one; the glass is the
-// clear style with that colour at 35% for its tint, so its rim catches the colour and its body stays as vivid as
-// Spotify's card. The cover and the title stay Spotify's, over the glass. The card takes the card radius, continuous;
-// the title moves in with it; and the card gives a little under a press, which Spotify showed by darkening the colour
-// the glass now covers. Picked on the iOS 27 simulator against plain tinted glass (flat on black), regular glass over
-// the colour (muddy) and the cover under clear glass (smeared), 2026-09-17.
-//
-// Under Reduce Transparency, or before iOS 26, the card is the colour alone.
+// Search categories use quiet editorial colour surfaces, larger insets and consistent type.
+// Spotify owns category artwork, titles, destinations and touch handling; glass is reserved for navigation.
 //
 // Tree (trees/clean/search/01.txt:332-339): Control<Box> id=Components.UI.CategoryCardBrowse 177x108 >
 // Encore.Box 177x108 clips > UIView r=4 clips (the Box's content view) > Encore.ImageView (the cover, turned 25 degrees
@@ -18,7 +11,7 @@
 #import "Redesigned/Kit/SGRKit.h"
 #import "Search.h"
 
-// The tint the glass takes of the card's colour, and how dark the far corner of the colour under it gets.
+// The quiet falloff across a category's own colour.
 static const CGFloat kFarBrightness = 0.55;
 // Where the title's top leading corner moves to, clear of the larger corner.
 static const CGFloat kTitleInset = SGRSpace16;
@@ -67,7 +60,7 @@ static CAShapeLayer *fillLayerOf(UIView *box) {
     return nil;
 }
 
-// Any other shape layer of the Box's that paints goes too: the glass is the card's only surface.
+// The editorial colour plate is the card's only surface.
 static void hideFills(UIView *box) {
     for (CALayer *layer in box.layer.sublayers) {
         if (![layer isKindOfClass:CAShapeLayer.class] || [layer.delegate isKindOfClass:UIView.class] || layer.hidden) continue;

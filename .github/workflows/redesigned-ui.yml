@@ -1,0 +1,39 @@
+name: Redesigned UI checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/apple-music-overhaul]
+    paths:
+      - tweak/Sources/Redesigned/**
+      - harness/**
+      - scripts/check-redesigned-ui.sh
+      - .github/workflows/redesigned-ui.yml
+
+permissions:
+  contents: read
+
+jobs:
+  presentation:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    env:
+      THEOS: ${{ github.workspace }}/theos
+    steps:
+      - uses: actions/checkout@v5
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: actions/checkout@v5
+        with:
+          repository: theos/theos
+          path: theos
+          submodules: recursive
+      - name: Check layers and compile presentation harnesses
+        run: bash scripts/check-redesigned-ui.sh
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: redesigned-ui-checks
+          path: out/ui-checks/
+          if-no-files-found: warn

@@ -34,7 +34,7 @@ UIColor *SGRSecondary(void) {
 }
 
 UIColor *SGRTertiary(void) {
-    return [UIColor colorWithWhite:1 alpha:SGRIncreaseContrast() ? 0.75 : 0.55];
+    return [UIColor colorWithWhite:1 alpha:SGRIncreaseContrast() ? 0.80 : 0.65];
 }
 
 // Read per call: the accent is stored as it is picked, and the colour row reads it the same way.

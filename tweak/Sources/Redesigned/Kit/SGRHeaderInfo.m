@@ -12,8 +12,19 @@ const CGFloat SGRHeaderInfoTitleRise = 56;
 // The text kSide in from the edges; Play at least kPlayWidth wide, the Music app's; the gaps between.
 static const CGFloat kSide = SGRSpace20, kPlayWidth = 160, kRowSpacing = SGRSpace12, kRowAbove = SGRSpace20, kAboutAbove = SGRSpace12;
 
+@interface SGRInfoLabel : UILabel
+@property (nonatomic, weak) UIView *activationSource;
+@end
+@implementation SGRInfoLabel
+- (BOOL)accessibilityActivate {
+    if (!self.activationSource) return [super accessibilityActivate];
+    SGRActivate(self.activationSource);
+    return YES;
+}
+@end
+
 static UILabel *infoLabel(UIView *parent, UIFont *font, UIColor *color, NSInteger lines, NSTextAlignment alignment) {
-    UILabel *label = [UILabel new];
+    UILabel *label = [SGRInfoLabel new];
     label.font = font;
     label.textColor = color;
     label.numberOfLines = lines;
@@ -113,6 +124,7 @@ static BOOL setText(UILabel *label, NSString *text) {
 // starts on. Spotify's own control stays concealed where it is and only fires.
 - (void)showCreatorLink:(UIView *)control {
     _creatorLink = control;
+    ((SGRInfoLabel *)_creator).activationSource = control;
     BOOL live = control != nil;
     if (_creator.userInteractionEnabled == live) return;
     _creator.userInteractionEnabled = live;
@@ -131,7 +143,8 @@ static BOOL setText(UILabel *label, NSString *text) {
     CGSize text = [_creator sizeThatFits:CGSizeMake(_creator.bounds.size.width, CGFLOAT_MAX)];
     CGRect frame = _creator.frame;
     CGRect word = CGRectInset(CGRectMake(round(CGRectGetMidX(frame) - text.width / 2), frame.origin.y,
-                                         MIN(text.width, frame.size.width), frame.size.height), -8, -6);
+                                         MIN(text.width, frame.size.width), frame.size.height), -8,
+                                         -MAX(6, (44 - frame.size.height) / 2));
     return CGRectContainsPoint(word, point) ? _creator : nil;
 }
 

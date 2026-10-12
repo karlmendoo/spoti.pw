@@ -28,21 +28,21 @@ extern const NSTimeInterval SGRInteractionDuration;
 extern const CGFloat SGRPressScale;
 extern const NSTimeInterval SGRLyricsBrowseHold;
 
-extern const CGFloat SGRSideMargin;      // 16, the page's side margin
+extern const CGFloat SGRSideMargin;      // 20, the page's side margin
 extern const CGFloat SGRGrid;            // 8, every gap is a multiple of it
 extern const CGFloat SGRRadiusArtwork;   // 12, the player's cover
-extern const CGFloat SGRRadiusCard;      // 16, a content card
+extern const CGFloat SGRRadiusCard;      // 12, a content card
 extern const CGFloat SGRRadiusCover;     // 8, a release cover in a list
 extern const CGFloat SGRRadiusThumb;     // 6, a row's thumbnail up to 64pt
 extern const CGFloat SGRGlassCircleSize; // 44, a round glass behind a top bar button
 extern const CGFloat SGRActionHeight;    // 48, a button of the action row under a hero
 extern const CGFloat SGRActionSpacing;   // 12, between the buttons of an action row
 extern const CGFloat SGRGlassSpacing;    // 16, how near two glass shapes merge in one container
-extern const NSTimeInterval SGRCrossfade;   // 0.35, a new image or field colour fading in
+extern const NSTimeInterval SGRCrossfade;   // 0.28, a new image or field colour fading in
 
 UIColor *SGRPrimary(void);      // white
-UIColor *SGRSecondary(void);    // white 65%, 80% with Increase Contrast
-UIColor *SGRTertiary(void);     // white 40%, 60% with Increase Contrast
+UIColor *SGRSecondary(void);    // white 72%, 90% with Increase Contrast
+UIColor *SGRTertiary(void);     // white 65%, 80% with Increase Contrast
 UIColor *SGRAccent(void);       // the accent colour of Appearance, else Spotify's green
 UIColor *SGRNeutralField(void); // #121212, the field before a colour arrives; SGRAmoled.x turns it black
 // Where glass cannot be (Reduce Transparency), the shape it would have had: white 16% over the field.
