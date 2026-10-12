@@ -21,7 +21,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+         repository: skopevoj/spoti.pw
+         ref: v0.50.0
 
+      - name: Set spoti.pw version
+        run: echo "0.50.0" > version.txt
+        
       - uses: levibostian/action-hide-sensitive-inputs@v1
 
       - uses: maxim-lobanov/setup-xcode@v1
