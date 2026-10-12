@@ -15,7 +15,6 @@
 static const CGFloat kFarBrightness = 0.55;
 // Where the title's top leading corner moves to, clear of the larger corner.
 static const CGFloat kTitleInset = SGRSpace16;
-static const CGFloat kPressScale = 0.97;
 
 static char kPartsKey, kRoundedKey;
 
@@ -188,7 +187,7 @@ static void style(UIView *box) {
     %orig;
     if (was == highlighted || !isCategoryCard(box)) return;
     SGRAnimate(SGRMotionPress, ^{
-        box.transform = highlighted ? CGAffineTransformMakeScale(kPressScale, kPressScale) : CGAffineTransformIdentity;
+        box.transform = highlighted ? CGAffineTransformMakeScale(SGRPressScale, SGRPressScale) : CGAffineTransformIdentity;
     }, nil);
 }
 %end

@@ -29,6 +29,8 @@ white content, and the moving player's luminance ceiling is lower for secondary 
 - `SGRContentRows` applies the same type to recognized Encore song rows in other surfaces,
   including compatible search/queue rows. The walk is bounded, successful references are weakly
   cached and cleared on reuse, and unknown content is left alone. It owns no row actions.
+- `SearchInput` gives UIKit search bars and explicit Search-key text fields a consistent dark
+  field, readable placeholder, semantic type and accent cursor, preserving the editing delegate.
 - The system tab bar has quiet selected/unselected colours, SF Symbols for recognized standard
   icons and accessible names even with labels hidden. Custom icons/order and Home hold still work.
 - Mini player artwork has release-cover corners. Its progress track derives its width from the

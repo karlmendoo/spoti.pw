@@ -16,7 +16,6 @@
 #import "Redesigned/Kit/SGRContentStyle.h"
 #import "NowPlayingBar.h"
 
-static const CGFloat kCardRadius = 18;
 static char kGlassKey;
 static __weak UIVisualEffectView *sg_cardGlass;
 static __weak UIView *sg_cardArtwork;
@@ -24,7 +23,7 @@ static __weak UIView *sg_cardArtwork;
 CGRect SGRNowPlayingCardFrameIn(UIView *host, CGFloat *radius) {
     UIVisualEffectView *glass = sg_cardGlass;
     if (!glass.superview || !glass.window || !host) return CGRectNull;
-    if (radius) *radius = MIN(kCardRadius, glass.bounds.size.height / 2);
+    if (radius) *radius = MIN(SGRRadiusMiniPlayer, glass.bounds.size.height / 2);
     return [host convertRect:glass.bounds fromView:glass];
 }
 
@@ -123,7 +122,7 @@ static void styleNowPlayingBar(UIViewController *container) {
     frame.size.height = MIN(frame.size.height, 80);
     if (frame.size.height < 30 || frame.size.width < 100) return;
 
-    CGFloat radius = MIN(kCardRadius, frame.size.height / 2);
+    CGFloat radius = MIN(SGRRadiusMiniPlayer, frame.size.height / 2);
     if (card) {
         roundView(card, radius);
         restyleCardContent(card);

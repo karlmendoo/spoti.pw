@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p out/ui-checks
+LOGS="$PWD/out/ui-checks"
 bash scripts/check-layers.sh
 for part in album playlist artist library player lyrics tabbar; do
     bash "harness/$part/build.sh" > "out/ui-checks/$part-build.log" 2>&1 || {
@@ -41,7 +42,7 @@ capture() {
     local app
     app=$(find "harness/$part/build" -name '*.app' -type d | head -1)
     xcrun simctl install "$DEVICE" "$app"
-    xcrun simctl launch --stdout="out/ui-checks/$shot-stdout.log" --stderr="out/ui-checks/$shot-stderr.log" "$DEVICE" "$bundle" "$@"
+    xcrun simctl launch --stdout="$LOGS/$shot-stdout.log" --stderr="$LOGS/$shot-stderr.log" "$DEVICE" "$bundle" "$@"
     sleep 5
     xcrun simctl io "$DEVICE" screenshot "out/ui-checks/$shot.png"
     xcrun simctl terminate "$DEVICE" "$bundle"
@@ -53,7 +54,7 @@ capture artist com.vojta.artistharness artist
 capture library com.vojta.libraryharness library
 capture player com.vojta.playerharness player
 SIMCTL_CHILD_HARNESS_SCENARIO=artwork xcrun simctl launch \
-    --stdout=out/ui-checks/artwork-stdout.log --stderr=out/ui-checks/artwork-stderr.log \
+    --stdout="$LOGS/artwork-stdout.log" --stderr="$LOGS/artwork-stderr.log" \
     "$DEVICE" com.vojta.playerharness
 sleep 17
 grep -q 'artwork checks: 4 of 4 right -- PASS' out/ui-checks/artwork-stderr.log
