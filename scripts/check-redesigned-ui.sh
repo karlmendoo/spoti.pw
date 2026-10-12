@@ -48,18 +48,45 @@ capture() {
     xcrun simctl terminate "$DEVICE" "$bundle"
 }
 capture album com.vojta.albumharness album late
-capture playlist com.vojta.playlistharness playlist other late
+capture playlist com.vojta.playlistharness playlist other late snapshot
 capture playlist com.vojta.playlistharness liked liked
 capture artist com.vojta.artistharness artist
 capture library com.vojta.libraryharness library
-capture player com.vojta.playerharness player
-SIMCTL_CHILD_HARNESS_SCENARIO=artwork xcrun simctl launch \
-    --stdout="$LOGS/artwork-stdout.log" --stderr="$LOGS/artwork-stderr.log" \
-    "$DEVICE" com.vojta.playerharness
-sleep 17
-grep -q 'artwork checks: 4 of 4 right -- PASS' out/ui-checks/artwork-stderr.log
-grep -q 'scroll checks:.*PASS' out/ui-checks/artwork-stderr.log
-xcrun simctl terminate "$DEVICE" com.vojta.playerharness
+SIMCTL_CHILD_HARNESS_SCENARIO=look capture player com.vojta.playerharness player
+
+# Each player scenario is selected at launch. Wait for its actual result; shared runners
+# can take longer than the scheduled animation delay to deliver the main-queue work.
+wait_for_result() {
+    local log=$1 pattern=$2
+    for ((attempt=0; attempt<60; attempt++)); do
+        if grep -q "$pattern" "$log"; then return 0; fi
+        sleep 1
+    done
+    echo "Timed out waiting for $pattern"
+    tail -60 "$log"
+    return 1
+}
+player_checks() {
+    local scenario=$1 pattern=$2
+    SIMCTL_CHILD_HARNESS_SCENARIO="$scenario" xcrun simctl launch \
+        --stdout="$LOGS/$scenario-stdout.log" --stderr="$LOGS/$scenario-stderr.log" \
+        "$DEVICE" com.vojta.playerharness
+    wait_for_result "$LOGS/$scenario-stderr.log" "$pattern"
+    xcrun simctl terminate "$DEVICE" com.vojta.playerharness
+    echo "$scenario scenario: passed"
+}
+player_checks artwork 'artwork checks: 4 of 4 right -- PASS'
+player_checks scroll 'scroll checks:.*PASS'
+
+# Exercise the timed collapse/pull and menu forwarding separately from the stable portrait.
+xcrun simctl launch --stdout="$LOGS/playlist-states-stdout.log" \
+    --stderr="$LOGS/playlist-states-stderr.log" "$DEVICE" com.vojta.playlistharness other late
+wait_for_result "$LOGS/playlist-states-stderr.log" 'Pressing Play:'
+grep -q 'state collapsed:.*picture drawn' "$LOGS/playlist-states-stderr.log"
+grep -q 'state pulled:.*picture drawn' "$LOGS/playlist-states-stderr.log"
+grep -q 'pinned more takes the touch: SGRMirrorButton' "$LOGS/playlist-states-stderr.log"
+xcrun simctl terminate "$DEVICE" com.vojta.playlistharness
+echo 'Playlist collapse, pull and more-button hit checks: passed'
 capture lyrics com.vojta.lyricsharness.new lyrics -song both -at 40000
 capture tabbar com.vojta.tabbarharness tabbar
 echo "Eight portrait screenshots captured from the recorded-layout harnesses. Real Spotify/device QA is still required." | tee out/ui-checks/runtime.txt

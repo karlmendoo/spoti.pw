@@ -706,6 +706,12 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
         downloadScript();
         return YES;
     }
+    // A screenshot launch remains expanded regardless of simulator scheduling latency.
+    // The regular launch still exercises collapse, pull, menus and Spotify relayouts.
+    if ([NSProcessInfo.processInfo.arguments containsObject:@"snapshot"]) {
+        setState(@"rest");
+        return YES;
+    }
     for (NSUInteger i = 0; i < 3; i++) {
         NSString *state = @[@"rest", @"collapsed", @"pulled"][i];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((4 + i * 4) * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{

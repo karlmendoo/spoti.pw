@@ -73,6 +73,8 @@ Dispatch it on the redesign branch. A branch push alone does not start this manu
 `Redesigned UI checks` separately compiles seven existing simulator harnesses. Where an iOS 26
 iPhone simulator is installed, it captures eight portrait screenshots under the
 `redesigned-ui-checks` artifact. A runner without that runtime reports a compile-only check.
+Artwork switching and player scroll locking run as separate scenarios; playlist collapse,
+pull and the pinned More button are checked independently of its stable expanded screenshot.
 These mocks do not prove Spotify's live element framework, network responses or device timing.
 
 On a Mac: `THEOS=~/theos bash scripts/check-redesigned-ui.sh`. On any compatible shell:
