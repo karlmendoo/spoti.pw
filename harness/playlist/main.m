@@ -709,7 +709,10 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
     // A screenshot launch remains expanded regardless of simulator scheduling latency.
     // The regular launch still exercises collapse, pull, menus and Spotify relayouts.
     if ([NSProcessInfo.processInfo.arguments containsObject:@"snapshot"]) {
-        setState(@"rest");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            setState(@"rest");
+            NSLog(@"[harness] playlist snapshot ready");
+        });
         return YES;
     }
     for (NSUInteger i = 0; i < 3; i++) {

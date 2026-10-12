@@ -36,6 +36,18 @@ xcrun simctl boot "$DEVICE" 2>/dev/null || true
 xcrun simctl bootstatus "$DEVICE" -b
 xcrun simctl status_bar "$DEVICE" override --time '9:41' --batteryState charged --batteryLevel 100
 
+# Wait for main-queue completion instead of assuming the simulator has rendered after launch.
+wait_for_result() {
+    local log=$1 pattern=$2
+    for ((attempt=0; attempt<60; attempt++)); do
+        if grep -q "$pattern" "$log"; then return 0; fi
+        sleep 1
+    done
+    echo "Timed out waiting for $pattern"
+    tail -60 "$log"
+    return 1
+}
+
 capture() {
     local part=$1 bundle=$2 shot=$3
     shift 3
@@ -43,7 +55,12 @@ capture() {
     app=$(find "harness/$part/build" -name '*.app' -type d | head -1)
     xcrun simctl install "$DEVICE" "$app"
     xcrun simctl launch --stdout="$LOGS/$shot-stdout.log" --stderr="$LOGS/$shot-stderr.log" "$DEVICE" "$bundle" "$@"
-    sleep 5
+    if [ "$shot" = playlist ]; then
+        wait_for_result "$LOGS/$shot-stderr.log" 'playlist snapshot ready'
+        sleep 1
+    else
+        sleep 5
+    fi
     xcrun simctl io "$DEVICE" screenshot "out/ui-checks/$shot.png"
     xcrun simctl terminate "$DEVICE" "$bundle"
 }
@@ -56,16 +73,6 @@ SIMCTL_CHILD_HARNESS_SCENARIO=look capture player com.vojta.playerharness player
 
 # Each player scenario is selected at launch. Wait for its actual result; shared runners
 # can take longer than the scheduled animation delay to deliver the main-queue work.
-wait_for_result() {
-    local log=$1 pattern=$2
-    for ((attempt=0; attempt<60; attempt++)); do
-        if grep -q "$pattern" "$log"; then return 0; fi
-        sleep 1
-    done
-    echo "Timed out waiting for $pattern"
-    tail -60 "$log"
-    return 1
-}
 player_checks() {
     local scenario=$1 pattern=$2
     SIMCTL_CHILD_HARNESS_SCENARIO="$scenario" xcrun simctl launch \
