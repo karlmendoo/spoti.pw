@@ -6,7 +6,22 @@ mkdir -p out/ui-checks
 LOGS="$PWD/out/ui-checks"
 bash scripts/check-layers.sh
 bash harness/lockart/build.sh > "$LOGS/lockart-build.log" 2>&1 || { tail -80 "$LOGS/lockart-build.log"; exit 1; }
-harness/lockart/build/lockart > "$LOGS/lockart.log" 2>&1 || { tail -80 "$LOGS/lockart.log"; exit 1; }
+python3 harness/lockart/server.py "$LOGS/download-count.json" > "$LOGS/download-server.log" 2>&1 &
+SERVER_PID=$!
+trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+for ((attempt=0; attempt<20; attempt++)); do
+    if grep -q ready "$LOGS/download-server.log"; then break; fi
+    sleep 0.1
+done
+SG_ARTWORK_TEST_SERVER=http://127.0.0.1:9124 harness/lockart/build/lockart > "$LOGS/lockart.log" 2>&1 || { tail -80 "$LOGS/lockart.log"; exit 1; }
+python3 - "$LOGS/download-count.json" <<'PY'
+import json, sys
+with open(sys.argv[1]) as file:
+    counts = json.load(file)
+assert counts == {'/shared': 1, '/failure': 1}, counts
+PY
+kill "$SERVER_PID" 2>/dev/null || true
+trap - EXIT
 echo 'Shared artwork cache, crop and source checks: passed'
 for part in album playlist artist library player lyrics tabbar; do
     bash "harness/$part/build.sh" > "out/ui-checks/$part-build.log" 2>&1 || {
@@ -87,6 +102,14 @@ player_checks() {
     SIMCTL_CHILD_HARNESS_SCENARIO="$scenario" xcrun simctl launch \
         --stdout="$LOGS/$scenario-stdout.log" --stderr="$LOGS/$scenario-stderr.log" \
         "$DEVICE" com.vojta.playerharness
+    if [ "$scenario" = animation ]; then
+        wait_for_result "$LOGS/$scenario-stderr.log" 'first frame revealed over the still -- PASS'
+        xcrun simctl io "$DEVICE" recordVideo --codec=h264 "$LOGS/animated-cover.mp4" > "$LOGS/video-record.log" 2>&1 &
+        local recorder=$!
+        sleep 2
+        kill -INT "$recorder"
+        wait "$recorder" || true
+    fi
     wait_for_result "$LOGS/$scenario-stderr.log" "$pattern"
     if [ "$scenario" = layout ]; then
         xcrun simctl io "$DEVICE" screenshot "out/ui-checks/player-small-cover.png"

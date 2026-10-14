@@ -23,6 +23,29 @@ static NSURL *cacheDirectory(void) {
     return [NSURL fileURLWithPath:[caches stringByAppendingPathComponent:@"spoti.pw/LockArtwork"]];
 }
 
+static void testSharedDownload(void) {
+    const char *server = getenv("SG_ARTWORK_TEST_SERVER");
+    if (!server) return;
+    NSString *base = @(server);
+    __block BOOL answered = NO, cancelledCalled = NO;
+    __block NSURL *kept = nil;
+    NSString *name = NSUUID.UUID.UUIDString;
+    SGArtworkFetchRequest *first = SGArtworkFetchShared(name, [base stringByAppendingString:@"/shared"], ^(NSURL *file, NSString *note) {
+        cancelledCalled = YES;
+    });
+    SGArtworkFetchShared(name, [base stringByAppendingString:@"/shared"], ^(NSURL *file, NSString *note) { kept = file; answered = YES; });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC / 10), dispatch_get_main_queue(), ^{ [first cancel]; });
+    NSDate *until = [NSDate dateWithTimeIntervalSinceNow:10];
+    while (!answered && until.timeIntervalSinceNow > 0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+    CHECK(kept && !cancelledCalled, @"a shared download survives one subscriber cancelling");
+    answered = NO;
+    __block NSURL *failed = nil;
+    SGArtworkFetchShared(NSUUID.UUID.UUIDString, [base stringByAppendingString:@"/failure"], ^(NSURL *file, NSString *note) { failed = file; answered = YES; });
+    until = [NSDate dateWithTimeIntervalSinceNow:10];
+    while (!answered && until.timeIntervalSinceNow > 0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+    CHECK(answered && !failed, @"an HTTP failure never becomes cached artwork");
+}
+
 // A clip the shape a Canvas is, so the crop has something real to chew on.
 static NSURL *writeClip(NSURL *into, int width, int height, int frames) {
     [NSFileManager.defaultManager removeItemAtURL:into error:nil];
@@ -154,6 +177,7 @@ int main(void) {
         printf("canvas\n");
         testCanvasFromMetadata();
         testCanvaz();
+        testSharedDownload();
 
         printf("\nthe clip\n");
         NSURL *clip = writeClip([scratch URLByAppendingPathComponent:@"canvas.mp4"], 720, 1280, 45);
