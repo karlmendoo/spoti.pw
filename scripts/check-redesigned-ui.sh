@@ -9,10 +9,11 @@ bash harness/lockart/build.sh > "$LOGS/lockart-build.log" 2>&1 || { tail -80 "$L
 python3 harness/lockart/server.py "$LOGS/download-count.json" > "$LOGS/download-server.log" 2>&1 &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
-for ((attempt=0; attempt<20; attempt++)); do
+for ((attempt=0; attempt<60; attempt++)); do
     if grep -q ready "$LOGS/download-server.log"; then break; fi
-    sleep 0.1
+    sleep 1
 done
+grep -q ready "$LOGS/download-server.log" || { cat "$LOGS/download-server.log"; exit 1; }
 SG_ARTWORK_TEST_SERVER=http://127.0.0.1:9124 harness/lockart/build/lockart > "$LOGS/lockart.log" 2>&1 || { tail -80 "$LOGS/lockart.log"; exit 1; }
 python3 - "$LOGS/download-count.json" <<'PY'
 import json, sys

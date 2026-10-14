@@ -27,10 +27,6 @@ static void testSharedDownload(void) {
     const char *server = getenv("SG_ARTWORK_TEST_SERVER");
     if (!server) return;
     NSString *base = @(server);
-    // A command-line Foundation process may have no default-mode sources until AVFoundation
-    // starts. Keep a source alive so the main-queue fetch completions can be driven from the start.
-    NSPort *port = [NSMachPort port];
-    [NSRunLoop.currentRunLoop addPort:port forMode:NSDefaultRunLoopMode];
     __block BOOL answered = NO, cancelledCalled = NO;
     __block NSURL *kept = nil;
     NSString *name = NSUUID.UUID.UUIDString;
@@ -172,7 +168,7 @@ static void testMerging(MPMediaItemAnimatedArtwork *artwork, NSString *key) {
     CHECK(both[key] == artwork && [both[MPMediaItemPropertyArtist] isEqual:@"the line being sung"], @"the key goes onto a dictionary the lyrics already wrote");
 }
 
-int main(void) {
+static int runChecks(void) {
     @autoreleasepool {
         NSURL *scratch = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:@"sg-lockart"]];
         [NSFileManager.defaultManager createDirectoryAtURL:scratch withIntermediateDirectories:YES attributes:nil error:nil];
@@ -264,4 +260,11 @@ int main(void) {
         printf("\n%s\n", sg_failures ? [NSString stringWithFormat:@"%d failed", sg_failures].UTF8String : "all good");
         return sg_failures ? 1 : 0;
     }
+}
+
+int main(void) {
+    // Media work and bounded waits belong off main; the actual main dispatch loop delivers fetch
+    // completions just as UIApplication does. A CLI's empty NSRunLoop is not an application loop.
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{ exit(runChecks()); });
+    dispatch_main();
 }
