@@ -1,10 +1,13 @@
+# The v0.51.0 source tag still contains 0.22.0. Apply the published stable kit
+# with upstream's official patcher, as upstream/feat/build-from-patcher does.
+# Keep the tagged source unchanged; pin the kit and patcher for this baseline.
 name: Build IPA from your own Spotify IPA
 
 on:
   workflow_dispatch:
     inputs:
       ipa_url:
-        description: "Direct link to a decrypted Spotify IPA"
+        description: "Direct link to a decrypted Spotify 9.1.90 IPA"
         required: true
         type: string
       upload_method:
@@ -13,45 +16,59 @@ on:
         type: choice
         options: [artifacts, filebin, both]
 
-env:
-  THEOS: ${{ github.workspace }}/theos
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
       - uses: levibostian/action-hide-sensitive-inputs@v1
 
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: actions/setup-node@v7
         with:
-          xcode-version: latest-stable
-
-      - uses: actions/checkout@v5
-        with:
-          repository: theos/theos
-          path: theos
-          submodules: recursive
-
-      - name: Install tools
-        run: |
-          brew install make dpkg ldid
-          python3 -m pip install --break-system-packages git+https://github.com/asdfzxcvbn/pyzule-rw.git
+          node-version: 24
 
       - name: Download IPA
+        env:
+          IPA_URL: ${{ inputs.ipa_url }}
         run: |
-          mkdir -p ipa
-          curl -fsSL "${{ inputs.ipa_url }}" -o ipa/spotify.ipa
-          case "$(file --mime-type -b ipa/spotify.ipa)" in application/zip|application/x-ios-app) ;; *) echo "::error::Not an IPA"; exit 1 ;; esac
+          mkdir -p out/input
+          curl -fsSL --retry 3 --write-out 'Download HTTP %{http_code}; redirects %{num_redirects}; bytes %{size_download}\n' \
+            -o out/input/spotify.ipa "$IPA_URL"
 
-      - run: make release
+      - name: Validate Spotify 9.1.90 IPA
+        run: python3 .github/scripts/validate-ipa.py out/input/spotify.ipa
+
+      - name: Download official v0.51.0 kit and patcher
+        run: |
+          curl -fsSL --retry 3 -o out/input/kit.zip \
+            https://github.com/skopevoj/spoti.pw/releases/download/v0.51.0/spoti.pw-0.51.0-kit.zip
+          curl -fsSL --retry 3 -o out/input/patcher.mjs https://chroma.pw/patcher.mjs
+          echo '21587c2b9433e3482c8c0ca6c6e4c7325a4b2c76d69bed607dfb031791231bd8  out/input/kit.zip' | sha256sum -c -
+          echo 'de20ab1e2407479c0b6e711a46fc7c7b76d9d834270a03e16e7000af50fd61db  out/input/patcher.mjs' | sha256sum -c -
+          python3 - <<'PY'
+          import json, zipfile
+          with zipfile.ZipFile('out/input/kit.zip') as kit:
+              manifest = json.loads(kit.read('kit.json'))
+          if manifest.get('version') != '0.51.0' or manifest.get('spotify') != '9.1.90':
+              raise SystemExit('::error::Expected the official 0.51.0 kit for Spotify 9.1.90')
+          print('Verified official kit: spoti.pw 0.51.0 for Spotify 9.1.90')
+          PY
+
+      - name: Patch with official release kit
+        run: node out/input/patcher.mjs out/input/spotify.ipa out/input/kit.zip out
+
+      - name: Validate patched IPA
+        run: python3 .github/scripts/validate-ipa.py out/spoti.pw-0.51.0.ipa --kit out/input/kit.zip
 
       - uses: actions/upload-artifact@v5
         if: inputs.upload_method != 'filebin'
         with:
           name: spoti.ipa
-          path: out/*.ipa
+          path: out/spoti.pw-0.51.0.ipa
           if-no-files-found: error
 
       - name: Upload to filebin.net
