@@ -27,6 +27,10 @@ static void testSharedDownload(void) {
     const char *server = getenv("SG_ARTWORK_TEST_SERVER");
     if (!server) return;
     NSString *base = @(server);
+    // A command-line Foundation process may have no default-mode sources until AVFoundation
+    // starts. Keep a source alive so the main-queue fetch completions can be driven from the start.
+    NSPort *port = [NSMachPort port];
+    [NSRunLoop.currentRunLoop addPort:port forMode:NSDefaultRunLoopMode];
     __block BOOL answered = NO, cancelledCalled = NO;
     __block NSURL *kept = nil;
     NSString *name = NSUUID.UUID.UUIDString;

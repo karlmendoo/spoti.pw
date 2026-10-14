@@ -70,7 +70,6 @@ static void track(NSString *name, NSString *clip) {
 static void exercise(UIWindow *window, SGRAnimatedCover *cover) {
     AVPlayerLayer *layer = videoLayer(cover);
     AVQueuePlayer *player = (id)layer.player;
-    CGRect original = [cover convertRect:cover.bounds toView:window];
     UIView *container = cover.superview;
     check(layer.readyForDisplay && layer.opacity == 1 && player.rate > 0, @"first frame revealed over the still");
     check(player.muted && player.volume == 0 && ![player.currentItem.asset tracksWithMediaType:AVMediaTypeAudio].count,
@@ -101,10 +100,11 @@ static void exercise(UIWindow *window, SGRAnimatedCover *cover) {
             [modal dismissViewControllerAnimated:NO completion:^{
                 [cover refreshVisibility];
                 check(player.rate > 0 && layer.player == player, @"fullscreen dismissal resumes");
+                CGRect beforeDetach = [cover convertRect:cover.bounds toView:window];
                 [cover removeFromSuperview];
                 check(player.rate == 0, @"dismissed player pauses");
                 [container addSubview:cover]; [cover refreshVisibility];
-                check(layer.player == player && player.rate > 0 && CGRectEqualToRect(original, [cover convertRect:cover.bounds toView:window]),
+                check(layer.player == player && player.rate > 0 && CGRectEqualToRect(beforeDetach, [cover convertRect:cover.bounds toView:window]),
                     @"reattachment preserves geometry and player");
                 SGRPlayerToggleLyrics();
                 check(player.rate == 0, @"lyrics suspends the large animation");

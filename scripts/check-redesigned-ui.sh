@@ -88,13 +88,6 @@ capture() {
     xcrun simctl io "$DEVICE" screenshot "out/ui-checks/$shot.png"
     xcrun simctl terminate "$DEVICE" "$bundle"
 }
-capture album com.vojta.albumharness album late
-capture playlist com.vojta.playlistharness playlist other late snapshot
-capture playlist com.vojta.playlistharness liked liked
-capture artist com.vojta.artistharness artist
-capture library com.vojta.libraryharness library
-SIMCTL_CHILD_HARNESS_SCENARIO=look capture player com.vojta.playerharness player
-
 # Each player scenario is selected at launch. Wait for its actual result; shared runners
 # can take longer than the scheduled animation delay to deliver the main-queue work.
 player_checks() {
@@ -117,10 +110,19 @@ player_checks() {
     xcrun simctl terminate "$DEVICE" com.vojta.playerharness
     echo "$scenario scenario: passed"
 }
+xcrun simctl install "$DEVICE" harness/player/build/PlayerHarness.app
+player_checks animation 'animated cover checks:.*PASS'
+
+capture album com.vojta.albumharness album late
+capture playlist com.vojta.playlistharness playlist other late snapshot
+capture playlist com.vojta.playlistharness liked liked
+capture artist com.vojta.artistharness artist
+capture library com.vojta.libraryharness library
+SIMCTL_CHILD_HARNESS_SCENARIO=look capture player com.vojta.playerharness player
+
 player_checks artwork 'artwork checks: 4 of 4 right -- PASS'
 player_checks scroll 'scroll checks:.*PASS'
 player_checks layout 'layout checks:.*PASS'
-player_checks animation 'animated cover checks:.*PASS'
 
 # Exercise the timed collapse/pull and menu forwarding separately from the stable portrait.
 xcrun simctl launch --stdout="$LOGS/playlist-states-stdout.log" \
