@@ -19,6 +19,8 @@ static BOOL visible(UIView *cover) {
     CGRect shown = CGRectIntersection(frame, window.bounds);
     for (UIView *view = cover; view; view = view.superview) {
         if (view.hidden || view.alpha < 0.01) return NO;
+        if ([view isKindOfClass:UIScrollView.class]
+            && (((UIScrollView *)view).dragging || ((UIScrollView *)view).decelerating)) return NO;
         if (view.clipsToBounds) shown = CGRectIntersection(shown, [view convertRect:view.bounds toView:window]);
     }
     if (CGRectIsNull(shown) || shown.size.width * shown.size.height < full * 0.8) return NO;
@@ -91,7 +93,13 @@ static BOOL visible(UIView *cover) {
         return;
     }
     if ([note.name isEqualToString:UIApplicationWillResignActiveNotification]
-        || [note.name isEqualToString:UIApplicationDidEnterBackgroundNotification]) { [_player pause]; return; }
+        || [note.name isEqualToString:UIApplicationDidEnterBackgroundNotification]) {
+        [_player pause];
+        [_visibilityTimer invalidate];
+        _visibilityTimer = nil;
+        return;
+    }
+    [self startVisibilityTimer];
     [self setTrack:_track];
 }
 - (void)layoutSubviews {
@@ -106,15 +114,19 @@ static BOOL visible(UIView *cover) {
     [super didMoveToWindow];
     [_visibilityTimer invalidate];
     _visibilityTimer = nil;
-    if (self.window) {
+    [self startVisibilityTimer];
+    [self refreshVisibility];
+}
+- (void)startVisibilityTimer {
+    if (!_visibilityTimer && self.window && UIApplication.sharedApplication.applicationState == UIApplicationStateActive) {
         __weak SGRAnimatedCover *weakSelf = self;
         _visibilityTimer = [NSTimer scheduledTimerWithTimeInterval:0.25 repeats:YES block:^(NSTimer *timer) {
             SGRAnimatedCover *cover = weakSelf;
             if (cover) [cover setTrack:cover->_track];
         }];
         _visibilityTimer.tolerance = 0.05;
+        [NSRunLoop.mainRunLoop addTimer:_visibilityTimer forMode:NSRunLoopCommonModes];
     }
-    [self refreshVisibility];
 }
 - (void)clearMedia {
     ++_generation;

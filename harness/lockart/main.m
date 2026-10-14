@@ -29,20 +29,24 @@ static void testSharedDownload(void) {
     NSString *base = @(server);
     __block BOOL answered = NO, cancelledCalled = NO;
     __block NSURL *kept = nil;
+    dispatch_semaphore_t sharedDone = dispatch_semaphore_create(0);
     NSString *name = NSUUID.UUID.UUIDString;
     SGArtworkFetchRequest *first = SGArtworkFetchShared(name, [base stringByAppendingString:@"/shared"], ^(NSURL *file, NSString *note) {
         cancelledCalled = YES;
     });
-    SGArtworkFetchShared(name, [base stringByAppendingString:@"/shared"], ^(NSURL *file, NSString *note) { kept = file; answered = YES; });
+    SGArtworkFetchShared(name, [base stringByAppendingString:@"/shared"], ^(NSURL *file, NSString *note) {
+        kept = file; answered = YES; dispatch_semaphore_signal(sharedDone);
+    });
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC / 10), dispatch_get_main_queue(), ^{ [first cancel]; });
-    NSDate *until = [NSDate dateWithTimeIntervalSinceNow:10];
-    while (!answered && until.timeIntervalSinceNow > 0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+    dispatch_semaphore_wait(sharedDone, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC));
     CHECK(kept && !cancelledCalled, @"a shared download survives one subscriber cancelling");
     answered = NO;
     __block NSURL *failed = nil;
-    SGArtworkFetchShared(NSUUID.UUID.UUIDString, [base stringByAppendingString:@"/failure"], ^(NSURL *file, NSString *note) { failed = file; answered = YES; });
-    until = [NSDate dateWithTimeIntervalSinceNow:10];
-    while (!answered && until.timeIntervalSinceNow > 0) [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+    dispatch_semaphore_t failedDone = dispatch_semaphore_create(0);
+    SGArtworkFetchShared(NSUUID.UUID.UUIDString, [base stringByAppendingString:@"/failure"], ^(NSURL *file, NSString *note) {
+        failed = file; answered = YES; dispatch_semaphore_signal(failedDone);
+    });
+    dispatch_semaphore_wait(failedDone, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC));
     CHECK(answered && !failed, @"an HTTP failure never becomes cached artwork");
 }
 
@@ -190,15 +194,13 @@ static int runChecks(void) {
         [NSFileManager.defaultManager copyItemAtURL:clip toURL:[cacheDirectory() URLByAppendingPathComponent:@"cached.mp4"] error:nil];
         __block NSURL *fetched = nil;
         __block NSString *fetchNote = nil;
-        __block BOOL answered = NO;
+        dispatch_semaphore_t fetchedDone = dispatch_semaphore_create(0);
         SGArtworkFetch(@"cached", @"https://example.invalid/never-asked.mp4", ^(NSURL *file, NSString *note) {
             fetched = file;
             fetchNote = note;
-            answered = YES;
+            dispatch_semaphore_signal(fetchedDone);
         });
-        NSDate *limit = [NSDate dateWithTimeIntervalSinceNow:10];
-        while (!answered && limit.timeIntervalSinceNow > 0)
-            [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+        dispatch_semaphore_wait(fetchedDone, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC));
         CHECK(fetched != nil && [fetchNote isEqualToString:@"cached"], @"a canvas already in the cache is handed straight back (%@)", fetchNote);
 
         printf("\nthe crop\n");

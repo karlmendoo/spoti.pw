@@ -110,7 +110,7 @@ volume keep Spotify as the only audio source without changing its audio session.
 checks reject obsolete resolution/loading results, including A → B → A skips. Detached/backgrounded,
 offscreen, lyrics-covered, transitioning or fullscreen-covered artwork suspends; returning reuses the
 same player. Reduce Motion and the existing disabled switch retain static artwork. Visibility uses a
-four-times-per-second timer only while attached, plus lifecycle notifications; it adds no display link
+four-times-per-second timer only while attached and foregrounded, plus lifecycle notifications; it adds no display link
 or frame processing and leaves existing gestures responsible for interaction.
 
 The `animation` simulator scenario writes real H.264 media off main and exercises the production

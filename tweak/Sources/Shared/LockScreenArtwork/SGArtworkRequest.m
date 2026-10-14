@@ -77,7 +77,7 @@
         return;
     }
     SGCanvas *canvas = SGCanvasFromMetadata(metadata);
-    if (canvas.video) { [self accept:canvas at:at]; return; }
+    if (canvas) { [self accept:canvas at:at]; return; }
     NSString *authorization = SGKaraokeSpotifyAuthorization();
     NSData *body = SGCanvazRequestBody(SGURIString(_track.URI));
     if (!authorization || !body) { [self walk:at + 1]; return; }
