@@ -98,11 +98,7 @@ player_checks() {
         "$DEVICE" com.vojta.playerharness
     if [ "$scenario" = animation ]; then
         wait_for_result "$LOGS/$scenario-stderr.log" 'first frame revealed over the still -- PASS'
-        xcrun simctl io "$DEVICE" recordVideo --codec=h264 "$LOGS/animated-cover.mp4" > "$LOGS/video-record.log" 2>&1 &
-        local recorder=$!
-        sleep 2
-        kill -INT "$recorder"
-        wait "$recorder" || true
+        python3 harness/player/record.py "$DEVICE" "$LOGS/animated-cover.mp4"
     fi
     wait_for_result "$LOGS/$scenario-stderr.log" "$pattern"
     if [ "$scenario" = layout ]; then
