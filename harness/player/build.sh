@@ -26,7 +26,7 @@ xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-ar
     "$SRC"/Shared/LockScreenArtwork/LockScreenArtwork.m "$SRC"/Shared/LockScreenArtwork/SGArtworkFile.m \
     "$SRC"/Shared/LockScreenArtwork/SGArtworkRequest.m "$SRC"/Shared/LockScreenArtwork/SGCanvas.m "$SRC"/Shared/LockScreenArtwork/SGAppleArtwork.m \
     "$SRC"/Redesigned/Lyrics/SGRKaraokeView.m "$SRC"/Redesigned/Lyrics/LyricsText.m "$SRC"/Shared/Lyrics/KaraokeTiming.m "$SRC"/Shared/Lyrics/Protobuf.m \
-    -framework UIKit -framework QuartzCore -framework CoreGraphics -framework CoreImage -framework Foundation -framework Symbols -framework AVFoundation -framework MediaPlayer \
+    -framework UIKit -framework QuartzCore -framework CoreGraphics -framework CoreImage -framework Foundation -framework Symbols -framework AVFoundation -framework MediaPlayer -framework CoreMedia -framework CoreVideo \
     -o "$OUT/PlayerHarness.app/PlayerHarness"
 
 cat > "$OUT/PlayerHarness.app/Info.plist" <<'PLIST'

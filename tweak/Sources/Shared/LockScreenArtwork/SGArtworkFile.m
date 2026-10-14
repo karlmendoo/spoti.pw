@@ -68,6 +68,7 @@ static SGArtworkFetchRequest *sg_legacy;
     self.cancelled = YES;
     dispatch_async(dispatch_get_main_queue(), ^{
         self.completion = nil;
+        if (!self.key) return;
         SGArtworkDownload *download = sg_downloads[self.key];
         [download.subscribers removeObject:self];
         if (download && !download.subscribers.count) {
@@ -134,11 +135,11 @@ SGArtworkFetchRequest *SGArtworkFetchShared(NSString *identifier, NSString *addr
                 if (!moved) [NSFileManager.defaultManager removeItemAtURL:staged error:nil];
                 dispatch_async(dispatch_get_main_queue(), ^{
                     // A cancelled download may have a new request under the same key already.
+                    download.task = nil;
                     if (sg_downloads[key] != download) return;
                     [sg_downloads removeObjectForKey:key];
                     NSArray *subscribers = [download.subscribers copy];
                     [download.subscribers removeAllObjects];
-                    download.task = nil;
                     for (SGArtworkFetchRequest *waiting in subscribers) {
                         if (!waiting.cancelled && waiting.completion) waiting.completion(moved ? local : nil, moved ? @"downloaded" : @"download failed");
                         waiting.completion = nil;

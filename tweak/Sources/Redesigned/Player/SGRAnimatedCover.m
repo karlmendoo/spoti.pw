@@ -68,8 +68,8 @@ static BOOL visible(UIView *cover) {
         NSUserDefaultsDidChangeNotification, AVPlayerItemFailedToPlayToEndTimeNotification]) {
         [center addObserver:self selector:@selector(changed:) name:name object:nil];
     }
-    SGRObservePlayerTransition(self, ^(SGRAnimatedCover *owner) { [owner refreshVisibility]; },
-        ^(SGRAnimatedCover *owner) { [owner refreshVisibility]; });
+    SGRObservePlayerTransition(self, ^(id owner) { [(SGRAnimatedCover *)owner refreshVisibility]; },
+        ^(id owner) { [(SGRAnimatedCover *)owner refreshVisibility]; });
     return self;
 }
 - (void)dealloc {

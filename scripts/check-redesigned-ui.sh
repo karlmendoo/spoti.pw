@@ -5,6 +5,9 @@ cd "$(dirname "$0")/.."
 mkdir -p out/ui-checks
 LOGS="$PWD/out/ui-checks"
 bash scripts/check-layers.sh
+bash harness/lockart/build.sh > "$LOGS/lockart-build.log" 2>&1 || { tail -80 "$LOGS/lockart-build.log"; exit 1; }
+harness/lockart/build/lockart > "$LOGS/lockart.log" 2>&1 || { tail -80 "$LOGS/lockart.log"; exit 1; }
+echo 'Shared artwork cache, crop and source checks: passed'
 for part in album playlist artist library player lyrics tabbar; do
     bash "harness/$part/build.sh" > "out/ui-checks/$part-build.log" 2>&1 || {
         tail -80 "out/ui-checks/$part-build.log"
