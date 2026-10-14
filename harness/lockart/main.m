@@ -265,8 +265,16 @@ static int runChecks(void) {
 }
 
 int main(void) {
+    setbuf(stdout, NULL);
     // Media work and bounded waits belong off main; the actual main dispatch loop delivers fetch
     // completions just as UIApplication does. A CLI's empty NSRunLoop is not an application loop.
+    NSPort *keepAlive = [NSMachPort port];
+    [NSRunLoop.currentRunLoop addPort:keepAlive forMode:NSDefaultRunLoopMode];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 180 * NSEC_PER_SEC), dispatch_get_global_queue(0, 0), ^{
+        fprintf(stderr, "artwork harness exceeded its three-minute deadline\n");
+        exit(2);
+    });
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{ exit(runChecks()); });
-    dispatch_main();
+    [NSRunLoop.currentRunLoop run];
+    return 1;
 }

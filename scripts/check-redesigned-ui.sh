@@ -14,7 +14,7 @@ for ((attempt=0; attempt<60; attempt++)); do
     sleep 1
 done
 grep -q ready "$LOGS/download-server.log" || { cat "$LOGS/download-server.log"; exit 1; }
-SG_ARTWORK_TEST_SERVER=http://127.0.0.1:9124 harness/lockart/build/lockart > "$LOGS/lockart.log" 2>&1 || { tail -80 "$LOGS/lockart.log"; exit 1; }
+SG_ARTWORK_TEST_SERVER=http://127.0.0.1:9124 harness/lockart/build/lockart 2>&1 | tee "$LOGS/lockart.log"
 python3 - "$LOGS/download-count.json" <<'PY'
 import json, sys
 with open(sys.argv[1]) as file:
