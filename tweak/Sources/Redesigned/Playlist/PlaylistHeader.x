@@ -184,6 +184,10 @@ static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *bloc
     CGRect frame = CGRectMake(0, 0, plane.bounds.size.width, bottom);
     if (!CGRectEqualToRect(hero.frame, frame)) hero.frame = frame;
 
+    static char kFindFieldKey;
+    hero.topObstruction = SGRFindByIdentifier(SGRPlaylistHeaderOf(layout).viewIfLoaded,
+        @"Components.Header.UI.Toolbar.SearchField", &kFindFieldKey);
+
     [hero followCover:coverImageIn(cover)];
     conceal(cover);
 }

@@ -11,6 +11,8 @@
 // Tree (trees/home.txt): NavigationUI_TabBarImpl.TabBarView > TabBarCompactView > UIStackView of
 //   ElementContentView<TabBarItemElement>, each with an SPTEncoreIconView and an SPTEncoreLabel.
 #import "Core/SGCore.h"
+#import "Redesigned/Kit/SGRChrome.h"
+#import "Redesigned/NowPlayingBar/NowPlayingBar.h"
 #import "Navbar.h"
 #import "Redesigned/Kit/SGRTokens.h"
 #import "Settings/SGPage.h"
@@ -421,6 +423,7 @@ static void syncBar(UIView *stockBar) {
     CGRect frame = CGRectMake(0, CGRectGetMaxY(bounds) - height, width, height);
     if (!CGRectEqualToRect(host.frame, frame)) host.frame = frame;
     if (!CGRectEqualToRect(bar.frame, host.bounds)) bar.frame = host.bounds;
+    SGRProtectBottomChrome(host, SGRNowPlayingCardFrameIn(host, NULL));
     if (host.superview != stockBar) [stockBar addSubview:host];
     else if (stockBar.subviews.lastObject != host) [stockBar bringSubviewToFront:host];
     logBarOnce(bar);

@@ -14,6 +14,7 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRRepaint.h"
 #import "Redesigned/Kit/SGRContentStyle.h"
+#import "Redesigned/Kit/SGRChrome.h"
 #import "NowPlayingBar.h"
 
 static char kGlassKey;
@@ -133,8 +134,10 @@ static void styleNowPlayingBar(UIViewController *container) {
     // took the system's light glass on a phone in light mode (TabBar.x).
     if (glass.overrideUserInterfaceStyle != UIUserInterfaceStyleDark) glass.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     sg_cardGlass = glass;
+    BOOL moved = !CGRectEqualToRect(glass.frame, frame);
     glass.frame = frame;
     SGShapeGlass(glass, radius, NO);
+    if (moved) SGRBottomChromeNeedsLayout();
 
     static dispatch_once_t once;
     dispatch_once(&once, ^{

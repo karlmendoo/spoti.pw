@@ -3,6 +3,45 @@
 // class names, with Spotify's message bar (Offline, Private Session) able to come in under the tab bar.
 #import <UIKit/UIKit.h>
 
+@interface SGModSettingsRow : UIControl @end
+@implementation SGModSettingsRow @end
+@interface SGHarnessSideDrawerListCollectionView : UICollectionView @end
+@implementation SGHarnessSideDrawerListCollectionView @end
+@interface SGDrawerItems : NSObject <UICollectionViewDataSource> @end
+@implementation SGDrawerItems
+- (NSInteger)collectionView:(UICollectionView *)view numberOfItemsInSection:(NSInteger)section { return 30; }
+- (UICollectionViewCell *)collectionView:(UICollectionView *)view cellForItemAtIndexPath:(NSIndexPath *)path {
+    return [view dequeueReusableCellWithReuseIdentifier:@"row" forIndexPath:path];
+}
+@end
+
+static void checkDrawerGeometry(UIWindow *window) {
+    UICollectionViewFlowLayout *layout = [UICollectionViewFlowLayout new];
+    layout.itemSize = CGSizeMake(window.bounds.size.width - 20, 56);
+    SGHarnessSideDrawerListCollectionView *list = [[SGHarnessSideDrawerListCollectionView alloc]
+        initWithFrame:CGRectMake(0, 140, window.bounds.size.width, 200) collectionViewLayout:layout];
+    SGDrawerItems *items = [SGDrawerItems new];
+    list.dataSource = items;
+    [list registerClass:UICollectionViewCell.class forCellWithReuseIdentifier:@"row"];
+    [window addSubview:list];
+    [list reloadData];
+    [list layoutIfNeeded];
+    SGModSettingsRow *row = [[SGModSettingsRow alloc] initWithFrame:CGRectMake(0, -56, list.bounds.size.width, 56)];
+    [list addSubview:row];
+    list.contentInset = UIEdgeInsetsMake(56, 0, 0, 0);
+    [list setContentOffset:CGPointMake(0, -list.adjustedContentInset.top + 56) animated:NO];
+    [list setNeedsLayout];
+    [list layoutIfNeeded];
+    BOOL revealed = fabs(list.contentOffset.y + list.adjustedContentInset.top) < 1;
+    [list setContentOffset:CGPointMake(0, 140) animated:NO];
+    [list setNeedsLayout];
+    [list layoutIfNeeded];
+    BOOL preserved = fabs(list.contentOffset.y - 140) < 1;
+    NSLog(@"[harness] drawer checks: first row revealed %d, browsing preserved %d -- %@",
+        revealed, preserved, revealed && preserved ? @"PASS" : @"FAIL");
+    [list removeFromSuperview];
+}
+
 #pragma mark - Spotify's classes, by the names the hooks look for
 
 @interface _TtC23NavigationUI_TabBarImpl10TabBarView : UIView
@@ -412,6 +451,7 @@ static void after(double seconds, dispatch_block_t block) {
         UITableView *list = (UITableView *)chrome.tabs.childViewControllers.firstObject.view;
         [list scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:29 inSection:0] atScrollPosition:UITableViewScrollPositionBottom animated:NO];
         report(chrome, mode);
+        checkDrawerGeometry(self.window);
     });
 }
 

@@ -85,16 +85,20 @@ player_checks() {
         --stdout="$LOGS/$scenario-stdout.log" --stderr="$LOGS/$scenario-stderr.log" \
         "$DEVICE" com.vojta.playerharness
     wait_for_result "$LOGS/$scenario-stderr.log" "$pattern"
+    if [ "$scenario" = layout ]; then
+        xcrun simctl io "$DEVICE" screenshot "out/ui-checks/player-small-cover.png"
+    fi
     xcrun simctl terminate "$DEVICE" com.vojta.playerharness
     echo "$scenario scenario: passed"
 }
 player_checks artwork 'artwork checks: 4 of 4 right -- PASS'
 player_checks scroll 'scroll checks:.*PASS'
+player_checks layout 'layout checks:.*PASS'
 
 # Exercise the timed collapse/pull and menu forwarding separately from the stable portrait.
 xcrun simctl launch --stdout="$LOGS/playlist-states-stdout.log" \
     --stderr="$LOGS/playlist-states-stderr.log" "$DEVICE" com.vojta.playlistharness other late
-wait_for_result "$LOGS/playlist-states-stderr.log" 'Pressing Play:'
+wait_for_result "$LOGS/playlist-states-stderr.log" 'header checks:.*PASS'
 grep -q 'state collapsed:.*picture drawn' "$LOGS/playlist-states-stderr.log"
 grep -q 'state pulled:.*picture drawn' "$LOGS/playlist-states-stderr.log"
 grep -q 'pinned more takes the touch: SGRMirrorButton' "$LOGS/playlist-states-stderr.log"
@@ -102,4 +106,5 @@ xcrun simctl terminate "$DEVICE" com.vojta.playlistharness
 echo 'Playlist collapse, pull and more-button hit checks: passed'
 capture lyrics com.vojta.lyricsharness.new lyrics -song both -at 40000
 capture tabbar com.vojta.tabbarharness tabbar
-echo "Eight portrait screenshots captured from the recorded-layout harnesses. Real Spotify/device QA is still required." | tee out/ui-checks/runtime.txt
+grep -q 'drawer checks:.*PASS' "$LOGS/tabbar-stderr.log"
+echo "Nine portrait screenshots captured from the recorded-layout harnesses. Real Spotify/device QA is still required." | tee out/ui-checks/runtime.txt

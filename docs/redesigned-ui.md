@@ -71,11 +71,28 @@ ignored all fork changes. Tool setup, sensitive-input masking, version override 
 Dispatch it on the redesign branch. A branch push alone does not start this manual IPA workflow.
 
 `Redesigned UI checks` separately compiles seven existing simulator harnesses. Where an iOS 26
-iPhone simulator is installed, it captures eight portrait screenshots under the
+iPhone simulator is installed, it captures nine portrait screenshots under the
 `redesigned-ui-checks` artifact. A runner without that runtime reports a compile-only check.
 Artwork switching and player scroll locking run as separate scenarios; playlist collapse,
 pull and the pinned More button are checked independently of its stable expanded screenshot.
 These mocks do not prove Spotify's live element framework, network responses or device timing.
+
+## Live screenshot follow-up
+
+The first device pass showed a small cover inside the full player artwork band, the playlist's
+Find on this page field over its cover at the expanded top, background text visible through the
+bottom controls, and a partly clipped Mod Settings row in the drawer. The fixes fit player artwork
+inside the existing portrait band, measure navigation/search clearance once for each header geometry,
+and provide one passive fading backing behind the two bottom bars. Native glass and all original
+controls remain. The drawer's initial offset reveals the added row without moving an already browsed list.
+
+The header test verifies both toolbar clearance and continued movement during collapse. Separate
+player and drawer checks reproduce the small-cover and late-inset cases; the player fixture also
+produces a screenshot. iPhone confirmation is still needed for the actual Spotify layouts and gestures.
+
+Design references: `apple-hig/references/hig/layout.md` (Guides and safe areas), `materials.md`
+(Liquid Glass), and `search-fields.md` (Best practices). In particular, the controls retain system
+materials and artwork keeps its square aspect rather than being cropped to fill available space.
 
 On a Mac: `THEOS=~/theos bash scripts/check-redesigned-ui.sh`. On any compatible shell:
 `bash scripts/check-layers.sh`. Theos compiles every new source through its existing source glob.

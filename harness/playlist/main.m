@@ -3,6 +3,31 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 #import "../download-mock.h"
+#import "Redesigned/Kit/SGRHeroArtwork.h"
+
+static void checkHeaderGeometry(UIWindow *window) {
+    CGFloat width = window.bounds.size.width;
+    UIView *plane = [[UIView alloc] initWithFrame:CGRectMake(0, -44, width, 420)];
+    [window addSubview:plane];
+    UIView *field = [[UIView alloc] initWithFrame:CGRectMake(16, 112, width - 32, 36)];
+    [window addSubview:field];
+    SGRHeroArtwork *hero = [[SGRHeroArtwork alloc] initWithFrame:plane.bounds];
+    hero.topObstruction = field;
+    [plane addSubview:hero];
+    [hero layoutIfNeeded];
+    CGRect before = [window convertRect:hero.picture.bounds fromView:hero.picture];
+    BOOL clears = CGRectGetMinY(before) >= CGRectGetMaxY(field.frame) + 15;
+    BOOL square = before.size.width > 100 && fabs(before.size.width - before.size.height) < 1;
+    plane.frame = CGRectOffset(plane.frame, 0, -100);
+    [hero setNeedsLayout];
+    [hero layoutIfNeeded];
+    CGRect after = [window convertRect:hero.picture.bounds fromView:hero.picture];
+    BOOL scrolls = fabs(CGRectGetMinY(after) - CGRectGetMinY(before) + 100) < 1;
+    NSLog(@"[harness] header checks: navigation/search clear %d, square %d, follows collapse %d -- %@",
+        clears, square, scrolls, clears && square && scrolls ? @"PASS" : @"FAIL");
+    [plane removeFromSuperview];
+    [field removeFromSuperview];
+}
 
 #pragma mark - Spotify's classes, by name
 
@@ -843,6 +868,7 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
         NSLog(@"[harness] Pressing Play: wash hidden=%d masked=%d, disc hidden=%d masked=%d, cover hidden=%d masked=%d",
               gradient.hidden, gradient.layer.mask != nil, playButton.hidden, playButton.layer.mask != nil,
               cover.hidden, cover.layer.mask != nil);
+        checkHeaderGeometry(self.window);
     });
     return YES;
 }

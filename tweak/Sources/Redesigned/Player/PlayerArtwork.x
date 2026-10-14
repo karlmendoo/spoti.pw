@@ -24,6 +24,59 @@ static NSHashTable<UIView *> *sg_tilts;
 // size, leaving bounds that no longer match the tilt view's, so the cover is not looked for by size again.
 static NSMapTable<UIView *, UIView *> *sg_covers;
 
+@interface SGRArtworkGeometry : NSObject
+@property (nonatomic) CGRect naturalBounds;
+@property (nonatomic) CGRect appliedBounds;
+@property (nonatomic) CGPoint naturalCenter;
+@property (nonatomic) CGPoint appliedCenter;
+@property (nonatomic, weak) UIView *parent;
+@end
+@implementation SGRArtworkGeometry
+@end
+static char kGeometryKey;
+
+// Some modes allocate the normal artwork band but put a much smaller square inside it.
+// Fit that square into the existing band; do not move the stack, chips or playback controls.
+static void fitArtwork(UIView *tilt) {
+    SGRArtworkGeometry *geometry = objc_getAssociatedObject(tilt, &kGeometryKey);
+    BOOL replaced = !geometry || geometry.parent != tilt.superview
+        || !CGRectEqualToRect(tilt.bounds, geometry.appliedBounds) || !CGPointEqualToPoint(tilt.center, geometry.appliedCenter);
+    if (!geometry) {
+        geometry = [SGRArtworkGeometry new];
+        objc_setAssociatedObject(tilt, &kGeometryKey, geometry, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    if (replaced) {
+        geometry.parent = tilt.superview;
+        geometry.naturalBounds = tilt.bounds;
+        geometry.naturalCenter = tilt.center;
+    }
+    UIView *host = nil;
+    for (UIView *view = tilt.superview; view; view = view.superview) {
+        if ([view.accessibilityIdentifier isEqualToString:@"SPTNowPlayingView"]
+            || [NSStringFromClass(view.class) isEqualToString:@"SPTNowPlayingView"]) { host = view; break; }
+    }
+    UIView *band = nil;
+    for (UIView *view = tilt.superview; host && view && view != host; view = view.superview) {
+        if (view.bounds.size.width >= host.bounds.size.width - 1) { band = view; break; }
+    }
+    CGRect bounds = geometry.naturalBounds;
+    CGPoint center = geometry.naturalCenter;
+    if (band && host.bounds.size.height > host.bounds.size.width && tilt.window) {
+        CGRect area = [host convertRect:band.bounds fromView:band];
+        CGFloat top = MAX(CGRectGetMinY(area) + SGRSpace8,
+            tilt.window.safeAreaInsets.top + SGRGlassCircleSize + SGRSpace16);
+        CGFloat side = floor(MIN(host.bounds.size.width - 2 * SGRSideMargin, CGRectGetMaxY(area) - top - SGRSpace24));
+        if (side >= kCoverMinWidth) {
+            bounds.size = CGSizeMake(side, side);
+            center = [tilt.superview convertPoint:CGPointMake(CGRectGetMidX(area), top + side / 2) fromView:host];
+        }
+    }
+    if (!CGRectEqualToRect(tilt.bounds, bounds)) tilt.bounds = bounds;
+    if (!CGPointEqualToPoint(tilt.center, center)) tilt.center = center;
+    geometry.appliedBounds = tilt.bounds;
+    geometry.appliedCenter = tilt.center;
+}
+
 static CGFloat currentScale(void) {
     SPTPlayerState *state = SGPlayerState();
     if (!state.isPaused || SGRPlayerIsTransitioning()) return 1;
@@ -56,7 +109,8 @@ static void scaleCover(UIView *tilt, CGFloat scale) {
     UIView *cover = coverIn(tilt);
     if (!cover) return;
     SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);
-    CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
+    CGFloat fit = tilt.bounds.size.width / MAX(1, cover.bounds.size.width);
+    CGAffineTransform transform = CGAffineTransformMakeScale(scale * fit, scale * fit);
     cover.transform = transform;
     plate.transform = transform;
 }
@@ -139,13 +193,18 @@ static void scaleEveryCover(BOOL animated) {
     UIView *cover = coverIn(tilt);
     if (!cover) return;
     [sg_tilts addObject:tilt];
+    fitArtwork(tilt);
     // The cover fills the tilt view (01.txt:37); bounds and center, unlike a frame, hold under the scale.
     CGRect bounds = tilt.bounds;
     CGPoint middle = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds));
-    if (!CGSizeEqualToSize(cover.bounds.size, bounds.size)) cover.bounds = (CGRect){cover.bounds.origin, bounds.size};
+    SGRArtworkGeometry *geometry = objc_getAssociatedObject(tilt, &kGeometryKey);
+    CGSize contentSize = geometry.naturalBounds.size;
+    // Keep Encore's measured contents at their original size and scale them together.
+    // Resizing each nested image proxy would fight its own layout and leave a small picture in a large box.
+    if (!CGSizeEqualToSize(cover.bounds.size, contentSize)) cover.bounds = (CGRect){cover.bounds.origin, contentSize};
     if (!CGPointEqualToPoint(cover.center, middle)) cover.center = middle;
 
-    cover.layer.cornerRadius = SGRRadiusArtwork;
+    cover.layer.cornerRadius = SGRRadiusArtwork / MAX(1, bounds.size.width / MAX(1, contentSize.width));
     cover.layer.cornerCurve = kCACornerCurveContinuous;
     cover.clipsToBounds = YES;
     SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);

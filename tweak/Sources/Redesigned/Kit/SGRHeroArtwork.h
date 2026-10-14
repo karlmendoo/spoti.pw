@@ -3,6 +3,7 @@
 #import <UIKit/UIKit.h>
 
 @interface SGRHeroArtwork : UIView
+@property (nonatomic, weak) UIView *topObstruction;
 @property (nonatomic, readonly) UIImageView *picture;
 @property (nonatomic) CGFloat topInset;
 - (void)showImage:(UIImage *)image animated:(BOOL)animated;

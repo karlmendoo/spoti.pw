@@ -306,6 +306,7 @@ static void loadLyrics(void) {
     UICollectionView *_covers;
     UIScrollView *_list;
     NSUInteger _failures, _checks;
+    UIView *_tilt, *_artworkBand, *_playerHost;
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
@@ -327,6 +328,7 @@ static void loadLyrics(void) {
     CGFloat bottomTop = H - bottomHeight - 61.33;
     CGFloat bandHeight = bottomTop - bandTop;
     CGFloat coverSide = MIN(354, W - 48);
+    if ([scenario() isEqualToString:@"layout"]) coverSide = 254;
 
     // NPVScrollViewController: the list the player is the header of.
     UIView *page = box(root.view, UIView.class, root.view.bounds, nil);
@@ -361,6 +363,9 @@ static void loadLyrics(void) {
     UIView *tilt = box(inner, _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView.class,
                        CGRectMake(0, round((inner.bounds.size.height - coverSide) / 2), coverSide, coverSide), nil);
     tilt.accessibilityLabel = @"Inspect cover art";
+    _tilt = tilt;
+    _artworkBand = band;
+    _playerHost = host;
     // The Encore.ImageView holding the picture (01.txt:40), which PlayerField.x reads the cover from.
     UIView *coverElement = box(tilt, UIView.class, tilt.bounds, @"Encore.ImageView");
     UIImage *picture = artwork();
@@ -484,6 +489,7 @@ static void loadLyrics(void) {
     if ([scenario() isEqualToString:@"artwork"]) [self runArtworkChecks];
     else if ([scenario() isEqualToString:@"look"]) [self runLook];
     else if ([scenario() isEqualToString:@"scroll"]) [self runScrollChecks];
+    else if ([scenario() isEqualToString:@"layout"]) [self runLayoutChecks];
     // Opened, closed and opened again, so a screenshot can be taken of each state and of the move itself.
     else for (NSNumber *at in @[@2, @6, @10]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(at.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -496,6 +502,25 @@ static void loadLyrics(void) {
 
 - (void)layOut {
     for (UIViewController *unit in _units) [unit viewDidLayoutSubviews];
+}
+
+- (void)runLayoutChecks {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self->_tilt setNeedsLayout];
+        [self->_tilt layoutIfNeeded];
+        CGRect cover = SGRPlayerCoverFrameIn(self->_playerHost);
+        CGRect band = [self->_playerHost convertRect:self->_artworkBand.bounds fromView:self->_artworkBand];
+        BOOL enlarged = cover.size.width > 300;
+        BOOL contained = CGRectGetMinY(cover) >= self.window.safeAreaInsets.top + 44
+            && CGRectGetMaxY(cover) <= CGRectGetMaxY(band) - 16;
+        BOOL square = fabs(cover.size.width - cover.size.height) < 1;
+        CGPoint center = self->_tilt.center;
+        [self->_tilt setNeedsLayout];
+        [self->_tilt layoutIfNeeded];
+        BOOL stable = CGPointEqualToPoint(center, self->_tilt.center);
+        NSLog(@"[harness] layout checks: small cover enlarged %d, contained %d, square %d, stable %d -- %@",
+            enlarged, contained, square, stable, enlarged && contained && square && stable ? @"PASS" : @"FAIL");
+    });
 }
 
 #pragma mark - tracks
