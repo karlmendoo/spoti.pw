@@ -7,6 +7,7 @@
 //
 //     PlayerField.x      the switch's flags and rows, the field in the background plane, the cover it reads
 //     PlayerArtwork.x    the cover's corners, shadow and paused shrink, the lyric preview under it hidden
+//     SGRAnimatedCover   the existing artwork sources looping inside that cover, with its still beneath
 //     PlayerHeader.x     glass behind the close and more buttons
 //     PlayerControls.x   previous, play and next as bare glyphs, monospaced times
 //     PlayerFooter.x     share gone, lyrics, Connect and queue as one row of three glyphs
@@ -45,6 +46,8 @@ CGRect SGRPlayerArtworkAreaIn(UIView *host);
 // Hides the cover on screen and its shadow, or shows them again, for a stand-in to fly in its place
 // (PlayerMorph.x).
 void SGRPlayerSetCoverHidden(BOOL hidden);
+// Lyrics and the cover morph suspend the passive animated cover as soon as it is covered.
+void SGRPlayerArtworkVisibilityChanged(void);
 
 #pragma mark - the lyrics in the player (PlayerLyrics.x)
 

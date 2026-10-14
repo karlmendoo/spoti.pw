@@ -39,7 +39,8 @@ NSArray<SGModRow *> *SGAnimatedArtworkRows(void) {
     };
     order.visible = ^BOOL { return SGFlag(SGKeyLockScreenArtwork, YES); };
     return @[
-        SGSwitchRow(@"Animated lock screen", @"A moving cover behind the lock screen's controls", SGKeyLockScreenArtwork),
+        SGSwitchRow(SGRedesignedUIStored() ? @"Animated artwork" : @"Animated lock screen",
+            SGRedesignedUIStored() ? @"Moving covers in Now Playing and on the lock screen" : @"A moving cover behind the lock screen's controls", SGKeyLockScreenArtwork),
         order,
     ];
 }

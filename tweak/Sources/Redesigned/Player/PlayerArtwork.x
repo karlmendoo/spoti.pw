@@ -13,6 +13,7 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
+#import "SGRAnimatedCover.h"
 
 static const CGFloat kPausedScale = 0.94, kPausedScaleReduceMotion = 1;
 // The bar's 40pt cover lives in a tilt view of its own; the player's is 354.
@@ -23,6 +24,7 @@ static NSHashTable<UIView *> *sg_tilts;
 // The cover of each tilt view once found. A frame Spotify sets on a scaled view becomes its scaled
 // size, leaving bounds that no longer match the tilt view's, so the cover is not looked for by size again.
 static NSMapTable<UIView *, UIView *> *sg_covers;
+static SGRAnimatedCover *sg_animation;
 
 @interface SGRArtworkGeometry : NSObject
 @property (nonatomic) CGRect naturalBounds;
@@ -124,7 +126,12 @@ static UIView *showingTilt(void) {
         if (!tilt.window) continue;
         BOOL hidden = NO;
         for (UIView *v = tilt; v && !hidden; v = v.superview) hidden = v.hidden;
-        if (!hidden) return tilt;
+        CGRect frame = [tilt convertRect:tilt.bounds toView:tilt.window];
+        CGRect shown = CGRectIntersection(frame, tilt.window.bounds);
+        for (UIView *v = tilt.superview; v && !hidden; v = v.superview) {
+            if (v.clipsToBounds) shown = CGRectIntersection(shown, [v convertRect:v.bounds toView:tilt.window]);
+        }
+        if (!hidden && !CGRectIsNull(shown) && shown.size.width * shown.size.height >= frame.size.width * frame.size.height * 0.8) return tilt;
     }
     return nil;
 }
@@ -162,6 +169,7 @@ void SGRPlayerSetCoverHidden(BOOL hidden) {
     sg_hiddenCover.alpha = 1;
     sg_hiddenPlate.alpha = 1;
     sg_hiddenCover = sg_hiddenPlate = nil;
+    [sg_animation refreshVisibility];
     if (!hidden) return;
     UIView *tilt = showingTilt();
     UIView *cover = coverIn(tilt);
@@ -171,6 +179,22 @@ void SGRPlayerSetCoverHidden(BOOL hidden) {
     plate.alpha = 0;
     sg_hiddenCover = cover;
     sg_hiddenPlate = plate;
+    [sg_animation refreshVisibility];
+}
+
+void SGRPlayerArtworkVisibilityChanged(void) { [sg_animation refreshVisibility]; }
+
+static void attachAnimation(void) {
+    UIView *cover = coverIn(showingTilt());
+    if (!cover) { [sg_animation refreshVisibility]; return; }
+    if (sg_animation.superview != cover) {
+        [sg_animation removeFromSuperview];
+        sg_animation.frame = cover.bounds;
+        sg_animation.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        [cover addSubview:sg_animation];
+    }
+    sg_animation.frame = cover.bounds;
+    [sg_animation setTrack:SGPlayerState().track];
 }
 
 #pragma mark - the paused shrink
@@ -212,6 +236,7 @@ static void scaleEveryCover(BOOL animated) {
     plate.center = cover.center;
     // The same value an animation in flight is heading to, so a layout pass never cuts one short.
     scaleCover(tilt, currentScale());
+    attachAnimation();
 
     static dispatch_once_t once;
     dispatch_once(&once, ^{ SGLog(@"redesign player: cover %@ rounded %.0f with a shadow plate, scale %.2f", NSStringFromClass(cover.class), SGRRadiusArtwork, currentScale()); });
@@ -244,6 +269,7 @@ static void scaleEveryCover(BOOL animated) {
 }
 
 - (void)playerStateDidChange:(SPTPlayerState *)state {
+    [sg_animation setTrack:state.track];
     NSInteger paused = state.isPaused ? 1 : 0;
     if (paused == _paused) return;
     _paused = paused;
@@ -261,12 +287,15 @@ static SGRPlayerArtworkWatcher *sg_artworkWatcher;
     %init;
     sg_tilts = [NSHashTable weakObjectsHashTable];
     sg_covers = [NSMapTable weakToWeakObjectsMapTable];
+    sg_animation = [[SGRAnimatedCover alloc] initWithFrame:CGRectZero];
     sg_artworkWatcher = [SGRPlayerArtworkWatcher new];
     SGAddPlayerStateObserver(sg_artworkWatcher);
     SGRObservePlayerTransition(sg_artworkWatcher, ^(id owner) {
         scaleEveryCover(YES);
+        [sg_animation refreshVisibility];
     }, ^(id owner) {
         scaleEveryCover(YES);
+        attachAnimation();
         static dispatch_once_t once;
         dispatch_once(&once, ^{ SGLog(@"redesign player: transition over, cover scale %.2f", currentScale()); });
     });

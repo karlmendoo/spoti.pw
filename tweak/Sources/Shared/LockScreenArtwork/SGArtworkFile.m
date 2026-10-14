@@ -49,46 +49,106 @@ static void prune(void) {
     SGLog(@"lock artwork: cache pruned to %llu KB", total / 1024);
 }
 
-static NSURLSessionDownloadTask *sg_task;
+@interface SGArtworkFetchRequest ()
+@property (atomic) BOOL cancelled;
+@property (nonatomic, copy) NSString *key;
+@property (nonatomic, copy) void (^completion)(NSURL *, NSString *);
+@end
+@interface SGArtworkDownload : NSObject
+@property (nonatomic, strong) NSURLSessionDownloadTask *task;
+@property (nonatomic, strong) NSMutableArray<SGArtworkFetchRequest *> *subscribers;
+@end
+@implementation SGArtworkDownload
+@end
+static NSMutableDictionary<NSString *, SGArtworkDownload *> *sg_downloads; // main thread
+static SGArtworkFetchRequest *sg_legacy;
 
-void SGArtworkCancelFetch(void) {
-    NSURLSessionDownloadTask *task = sg_task;
-    sg_task = nil;
-    [task cancel];
+@implementation SGArtworkFetchRequest
+- (void)cancel {
+    self.cancelled = YES;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.completion = nil;
+        SGArtworkDownload *download = sg_downloads[self.key];
+        [download.subscribers removeObject:self];
+        if (download && !download.subscribers.count) {
+            [download.task cancel];
+            download.task = nil;
+            [sg_downloads removeObjectForKey:self.key];
+        }
+    });
+}
+@end
+
+void SGArtworkCancelFetch(void) { [sg_legacy cancel]; sg_legacy = nil; }
+void SGArtworkFetch(NSString *identifier, NSString *address, void (^done)(NSURL *, NSString *)) {
+    SGArtworkCancelFetch();
+    sg_legacy = SGArtworkFetchShared(identifier, address, done);
 }
 
-void SGArtworkFetch(NSString *identifier, NSString *address, void (^done)(NSURL *file, NSString *note)) {
-    SGArtworkCancelFetch();
-    NSURL *remote = address.length ? [NSURL URLWithString:address] : nil;
-    if (!remote) {
-        done(nil, @"no address");
-        return;
-    }
-    NSURL *local = fileFor([identifier stringByAppendingPathExtension:@"mp4"]);
-    if ([NSFileManager.defaultManager fileExistsAtPath:local.path]) {
-        dispatch_async(queue(), ^{ touch(local); });
-        done(local, @"cached");
-        return;
-    }
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:remote];
-    // Low Data Mode marks the path constrained; the download then fails rather than spending the data.
-    request.allowsConstrainedNetworkAccess = NO;
-    sg_task = [NSURLSession.sharedSession downloadTaskWithRequest:request completionHandler:^(NSURL *temporary, NSURLResponse *response, NSError *error) {
-        if (!temporary) {
-            done(nil, [NSString stringWithFormat:@"download failed: %@", error.localizedDescription]);
+SGArtworkFetchRequest *SGArtworkFetchShared(NSString *identifier, NSString *address, void (^done)(NSURL *, NSString *)) {
+    SGArtworkFetchRequest *subscriber = [SGArtworkFetchRequest new];
+    subscriber.completion = done;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (subscriber.cancelled) return;
+        NSURL *remote = address.length ? [NSURL URLWithString:address] : nil;
+        if (!identifier.length || ![identifier isEqualToString:identifier.lastPathComponent]
+            || ![@[@"https", @"http"] containsObject:remote.scheme.lowercaseString]) {
+            if (subscriber.completion) subscriber.completion(nil, @"no address");
+            subscriber.completion = nil;
             return;
         }
-        long long length = response.expectedContentLength;
-        dispatch_async(queue(), ^{
-            NSError *move = nil;
-            [NSFileManager.defaultManager removeItemAtURL:local error:nil];
-            BOOL moved = [NSFileManager.defaultManager moveItemAtURL:temporary toURL:local error:&move];
-            if (moved) prune();
-            done(moved ? local : nil, moved ? [NSString stringWithFormat:@"downloaded %lld KB", length / 1024]
-                                            : [NSString stringWithFormat:@"not kept: %@", move.localizedDescription]);
-        });
-    }];
-    [sg_task resume];
+        NSURL *local = fileFor([identifier stringByAppendingPathExtension:@"mp4"]);
+        if ([NSFileManager.defaultManager fileExistsAtPath:local.path]) {
+            dispatch_async(queue(), ^{ touch(local); });
+            if (subscriber.completion) subscriber.completion(local, @"cached");
+            subscriber.completion = nil;
+            return;
+        }
+        if (!sg_downloads) sg_downloads = [NSMutableDictionary dictionary];
+        NSString *key = [NSString stringWithFormat:@"%@\n%@", identifier, address];
+        subscriber.key = key;
+        SGArtworkDownload *download = sg_downloads[key];
+        if (download) { [download.subscribers addObject:subscriber]; return; }
+        download = [SGArtworkDownload new];
+        download.subscribers = [NSMutableArray arrayWithObject:subscriber];
+        sg_downloads[key] = download;
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:remote];
+        request.allowsConstrainedNetworkAccess = NO;
+        download.task = [NSURLSession.sharedSession downloadTaskWithRequest:request completionHandler:^(NSURL *temporary, NSURLResponse *response, NSError *error) {
+            // NSURLSession removes its temporary file when this callback returns. Move it before
+            // handing work to the cache queue, otherwise a perfectly good download can disappear.
+            NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? [(NSHTTPURLResponse *)response statusCode] : 0;
+            NSURL *staged = fileFor([NSUUID.UUID.UUIDString stringByAppendingPathExtension:@"download"]);
+            unsigned long long size = temporary ? [[NSFileManager.defaultManager attributesOfItemAtPath:temporary.path error:nil][NSFileSize] unsignedLongLongValue] : 0;
+            BOOL kept = temporary && !error && status >= 200 && status < 300 && size > 0 && size <= kCap
+                && [NSFileManager.defaultManager moveItemAtURL:temporary toURL:staged error:nil];
+            dispatch_async(queue(), ^{
+                BOOL moved = NO;
+                if (kept) {
+                    if ([NSFileManager.defaultManager fileExistsAtPath:local.path]) {
+                        moved = YES;
+                        [NSFileManager.defaultManager removeItemAtURL:staged error:nil];
+                    } else moved = [NSFileManager.defaultManager moveItemAtURL:staged toURL:local error:nil];
+                    if (moved) { touch(local); prune(); }
+                }
+                if (!moved) [NSFileManager.defaultManager removeItemAtURL:staged error:nil];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    // A cancelled download may have a new request under the same key already.
+                    if (sg_downloads[key] != download) return;
+                    [sg_downloads removeObjectForKey:key];
+                    NSArray *subscribers = [download.subscribers copy];
+                    [download.subscribers removeAllObjects];
+                    download.task = nil;
+                    for (SGArtworkFetchRequest *waiting in subscribers) {
+                        if (!waiting.cancelled && waiting.completion) waiting.completion(moved ? local : nil, moved ? @"downloaded" : @"download failed");
+                        waiting.completion = nil;
+                    }
+                });
+            });
+        }];
+        [download.task resume];
+    });
+    return subscriber;
 }
 
 // The size the clip is played at, its rotation applied, and the transform that puts its top left at

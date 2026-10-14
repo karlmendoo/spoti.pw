@@ -40,6 +40,11 @@ NSString *SGURIString(id uri) {
 
 static NSHashTable *sg_observers;
 static SPTPlayerState *sg_state;
+static NSDictionary *sg_animationMetadata;
+void SGRHarnessSetAnimation(NSString *identifier) {
+    sg_animationMetadata = identifier ? @{@"canvas.id": identifier, @"canvas.url": @"https://example.invalid/never-requested.mp4", @"canvas.type": @"VIDEO_LOOPING"} : nil;
+}
+NSString *SGKaraokeSpotifyAuthorization(void) { return nil; }
 
 void SGAddPlayerStateObserver(id observer) {
     if (!sg_observers) sg_observers = [NSHashTable weakObjectsHashTable];
@@ -53,6 +58,7 @@ void SGRHarnessSetTrack(NSString *uri, NSString *imageURI, BOOL paused) {
     SPTPlayerTrack *track = [SPTPlayerTrack new];
     [track setValue:uri forKey:@"URI"];
     NSMutableDictionary *metadata = [@{@"title": uri} mutableCopy];
+    [metadata addEntriesFromDictionary:sg_animationMetadata ?: @{}];
     if (imageURI) {
         // The four sizes share the picture's last 24 digits (out/karaoke-diag.log:174-177 on the phone).
         NSString *hash = [imageURI substringFromIndex:imageURI.length - 24];

@@ -301,6 +301,7 @@ static void setOpen(BOOL open, BOOL animated) {
         return;
     }
     sg_open = open;
+    SGRPlayerArtworkVisibilityChanged();
     SGRPlayerLyricsChanged();
 
     SGRPlayerLyricsOverlay *overlay = overlayIn(host);

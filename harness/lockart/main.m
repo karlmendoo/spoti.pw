@@ -166,13 +166,15 @@ int main(void) {
         [NSFileManager.defaultManager copyItemAtURL:clip toURL:[cacheDirectory() URLByAppendingPathComponent:@"cached.mp4"] error:nil];
         __block NSURL *fetched = nil;
         __block NSString *fetchNote = nil;
-        dispatch_semaphore_t got = dispatch_semaphore_create(0);
+        __block BOOL answered = NO;
         SGArtworkFetch(@"cached", @"https://example.invalid/never-asked.mp4", ^(NSURL *file, NSString *note) {
             fetched = file;
             fetchNote = note;
-            dispatch_semaphore_signal(got);
+            answered = YES;
         });
-        dispatch_semaphore_wait(got, dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_SEC));
+        NSDate *limit = [NSDate dateWithTimeIntervalSinceNow:10];
+        while (!answered && limit.timeIntervalSinceNow > 0)
+            [NSRunLoop.currentRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
         CHECK(fetched != nil && [fetchNote isEqualToString:@"cached"], @"a canvas already in the cache is handed straight back (%@)", fetchNote);
 
         printf("\nthe crop\n");

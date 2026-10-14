@@ -54,7 +54,7 @@ white content, and the moving player's luminance ceiling is lower for secondary 
 Palette requests run on the existing serial queue and share a 64-entry/8 MB pressure-evictable
 cache keyed by image identity, output geometry, options and contrast. Keys do not retain original
 images and do not collide when addresses are reused. Search adds no per-card effect views.
-Decorative artwork does not install timers, observers or display links. Shared haptics still
+Decorative playlist/album artwork does not install timers, observers or display links. Shared haptics still
 honour the user's switches; there is no second feedback generator on forwarded actions.
 
 All Logos constructors are gated by `SGRedesignedUI()`. Existing Spotify hook classes/selectors
@@ -89,6 +89,35 @@ controls remain. The drawer's initial offset reveals the added row without movin
 The header test verifies both toolbar clearance and continued movement during collapse. Separate
 player and drawer checks reproduce the small-cover and late-inset cases; the player fixture also
 produces a screenshot. iPhone confirmation is still needed for the actual Spotify layouts and gestures.
+
+## Animated Now Playing cover
+
+The large cover now embeds a passive `AVPlayerLayer` inside its existing clipped ElementView.
+The same corners, size, tilt, paused shrink and cover morph apply to both still and moving content.
+Spotify's high-resolution still remains underneath until `readyForDisplay` permits a short fade;
+the mini player and transition stand-in remain static. Fluid/background motion remains independent.
+
+`Shared/LockScreenArtwork/SGArtworkRequest` extracts the existing Canvas/Apple Music resolution
+for both surfaces. It uses the existing source order, animation switch and 120 MB file cache.
+Independent subscribers coalesce downloads, so cancelling the cover cannot cancel the lock screen.
+Unavailable sources and invalid downloads fall through to the next enabled source, then the still.
+Apple Music supplies its square variant for Now Playing; Canvas is centre cropped by the video layer.
+No new provider, cache directory or preference is introduced. In Redesigned mode the existing
+Lock screen widget artwork row reads “Animated artwork” and describes both surfaces.
+
+One `AVQueuePlayer`/`AVPlayerLooper` follows the visible cover. Video-only composition, mute and zero
+volume keep Spotify as the only audio source without changing its audio session. Generation and URI
+checks reject obsolete resolution/loading results, including A → B → A skips. Detached/backgrounded,
+offscreen, lyrics-covered, transitioning or fullscreen-covered artwork suspends; returning reuses the
+same player. Reduce Motion and the existing disabled switch retain static artwork. Visibility uses a
+four-times-per-second timer only while attached, plus lifecycle notifications; it adds no display link
+or frame processing and leaves existing gestures responsible for interaction.
+
+The `animation` simulator scenario writes real H.264 media off main and exercises the production
+overlay in the recorded cover hierarchy: first-frame reveal, clipping, muted looping, rapid skips,
+invalid media, preference changes, independent cache subscribers, offscreen/background/dismissal,
+lyrics and fullscreen presentation. Physical-device provider availability and seamless looping on
+actual Apple Music/Canvas clips remain part of iPhone QA.
 
 Design references: `apple-hig/references/hig/layout.md` (Guides and safe areas), `materials.md`
 (Liquid Glass), and `search-fields.md` (Best practices). In particular, the controls retain system

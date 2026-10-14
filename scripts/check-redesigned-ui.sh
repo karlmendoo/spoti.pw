@@ -94,6 +94,7 @@ player_checks() {
 player_checks artwork 'artwork checks: 4 of 4 right -- PASS'
 player_checks scroll 'scroll checks:.*PASS'
 player_checks layout 'layout checks:.*PASS'
+player_checks animation 'animated cover checks:.*PASS'
 
 # Exercise the timed collapse/pull and menu forwarding separately from the stable portrait.
 xcrun simctl launch --stdout="$LOGS/playlist-states-stdout.log" \

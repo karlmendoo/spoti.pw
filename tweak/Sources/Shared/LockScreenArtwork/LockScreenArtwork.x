@@ -3,14 +3,15 @@
 #import <MediaPlayer/MediaPlayer.h>
 #import "Core/SGCore.h"
 #import "LockScreenArtwork.h"
-#import "SGAppleArtwork.h"
+#import "SGArtworkRequest.h"
 #import "SGArtworkFile.h"
 #import "SGCanvas.h"
 #import "Headers/SPTPlayer.h"
 #import "Shared/Lyrics/Lyrics.h"
 #import "Shared/Player/PlayerState.h"
 
-static NSString *const kCanvazAddress = @"https://spclient.wg.spotify.com/canvaz-cache/v0/canvases";
+static SGArtworkRequest *sg_request;
+static NSUInteger sg_generation;
 
 // Spotify sets the now playing info from several threads; what the hook reads is behind the lock and
 // everything else is main thread.
@@ -99,77 +100,20 @@ static void resend(void) {
     MPNowPlayingInfoCenter.defaultCenter.nowPlayingInfo = now;
 }
 
-static void play(NSString *uri, SGCanvas *canvas, NSString *source) {
-    SGLog(@"lock artwork: clip for %@ from %@: %@", uri, source, canvas.address);
-    SGArtworkFetch(canvas.identifier, canvas.address, ^(NSURL *file, NSString *note) {
-        SGLog(@"lock artwork: %@ %@", canvas.identifier, note);
-        if (!file) return;
-        SGArtworkCrop(file, canvas.identifier, sg_aspect, ^(NSURL *ready, NSString *cropNote) {
-            SGLog(@"lock artwork: %@ %@", canvas.identifier, cropNote);
-            if (!ready) return;
-            SGArtworkFirstFrame(ready, ^(CGImageRef frame) {
-                UIImage *still = frame ? [UIImage imageWithCGImage:frame] : nil;
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    if (![sg_wanted isEqualToString:uri]) return;
-                    id artwork = artworkFor([canvas.identifier stringByAppendingString:uri], ready, still);
-                    @synchronized (sg_lock) {
-                        sg_artwork = artwork;
-                        sg_key = sg_offered;
-                    }
-                    sg_playing = source;
-                    SGLog(@"lock artwork: %@ set under %@", uri, sg_offered);
-                    resend();
-                });
+static void play(NSString *uri, NSURL *file, NSString *identifier, NSString *source, NSUInteger generation) {
+    SGArtworkCrop(file, identifier, sg_aspect, ^(NSURL *ready, NSString *cropNote) {
+        if (!ready) return;
+        SGArtworkFirstFrame(ready, ^(CGImageRef frame) {
+            UIImage *still = frame ? [UIImage imageWithCGImage:frame] : nil;
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (generation != sg_generation || ![sg_wanted isEqualToString:uri]) return;
+                id artwork = artworkFor([identifier stringByAppendingString:uri], ready, still);
+                @synchronized (sg_lock) { sg_artwork = artwork; sg_key = sg_offered; }
+                sg_playing = source;
+                SGLog(@"lock artwork: %@ set under %@", uri, sg_offered);
+                resend();
             });
         });
-    });
-}
-
-static void askCanvaz(NSString *uri, void (^done)(SGCanvas *canvas, NSString *note)) {
-    NSString *authorization = SGKaraokeSpotifyAuthorization();
-    NSData *body = SGCanvazRequestBody(uri);
-    if (!authorization || !body) {
-        done(nil, @"no token for canvaz yet");
-        return;
-    }
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:kCanvazAddress]];
-    request.HTTPMethod = @"POST";
-    request.HTTPBody = body;
-    request.allowsConstrainedNetworkAccess = NO;
-    [request setValue:authorization forHTTPHeaderField:@"Authorization"];
-    [request setValue:@"application/x-protobuf" forHTTPHeaderField:@"Content-Type"];
-    [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *answer, NSURLResponse *response, NSError *error) {
-        SGCanvas *canvas = SGCanvazFromBody(answer);
-        NSString *note = [NSString stringWithFormat:@"canvaz status %ld, %lu bytes, error %@",
-                          (long)[(NSHTTPURLResponse *)response statusCode], (unsigned long)answer.length, error.localizedDescription];
-        dispatch_async(dispatch_get_main_queue(), ^{ done(canvas, note); });
-    }] resume];
-}
-
-// One source's clip for the track, on the main queue; nil when it has none.
-static void ask(NSString *source, NSString *uri, SPTPlayerTrack *track, SGCanvas *fromMetadata, void (^done)(SGCanvas *canvas, NSString *note)) {
-    if ([source isEqualToString:SGArtworkSourceSpotify]) {
-        if (fromMetadata) done(fromMetadata, @"track metadata");
-        else askCanvaz(uri, done);
-        return;
-    }
-    NSDictionary *metadata = [track respondsToSelector:@selector(metadata)] ? track.metadata : nil;
-    SGAppleArtworkFind(metadata[@"artist_name"] ?: track.artistName, metadata[@"album_title"], sg_aspect < 0.9, done);
-}
-
-static void walk(NSString *uri, SPTPlayerTrack *track, SGCanvas *fromMetadata, NSArray<NSString *> *order, NSUInteger at) {
-    if (at >= order.count) {
-        SGLog(@"lock artwork: no clip for %@ from %@", uri, order.count ? [order componentsJoinedByString:@", "] : @"no source");
-        return;
-    }
-    ask(order[at], uri, track, fromMetadata, ^(SGCanvas *canvas, NSString *note) {
-        if (![sg_wanted isEqualToString:uri]) return;
-        if (canvas.video) {
-            play(uri, canvas, order[at]);
-            return;
-        }
-        SGLog(@"lock artwork: %@ has no clip for %@ (%@)", order[at], uri, canvas ? @"a still canvas" : note);
-        walk(uri, track, fromMetadata, order, at + 1);
     });
 }
 
@@ -187,7 +131,9 @@ static void resolve(SPTPlayerTrack *track) {
     if (!SGFlag(SGKeyLockScreenArtwork, YES)) {
         if (sg_wanted) {
             sg_wanted = nil;
-            SGArtworkCancelFetch();
+            [sg_request cancel];
+            sg_request = nil;
+            ++sg_generation;
             sg_playing = nil;
             @synchronized (sg_lock) {
                 sg_artwork = nil;
@@ -212,13 +158,19 @@ static void resolve(SPTPlayerTrack *track) {
     if (same && (spotifyAt == NSNotFound || (sg_playing && [order indexOfObject:sg_playing] < spotifyAt))) return;
     sg_wanted = uri;
     sg_playing = nil;
-    SGArtworkCancelFetch();
+    [sg_request cancel];
+    sg_request = nil;
+    NSUInteger generation = ++sg_generation;
     @synchronized (sg_lock) {
         sg_artwork = nil;
         sg_key = nil;
     }
     if (!uri) return;
-    walk(uri, track, canvas, order, 0);
+    sg_request = [SGArtworkRequest resolveTrack:track tall:sg_aspect < 0.9
+        completion:^(NSURL *file, NSString *identifier, NSString *source) {
+            if (generation != sg_generation || ![sg_wanted isEqualToString:uri] || !file) return;
+            play(uri, file, identifier, source, generation);
+        }];
 }
 
 @interface SGArtworkWatcher : NSObject <SGPlayerStateObserver>
